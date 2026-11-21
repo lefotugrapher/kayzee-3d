@@ -3,7 +3,7 @@ name = "kayzee3d"
 version = "0.3.1"
 edition = "2024"
 description = "A landscape modeller and renderer for Mac and Windows that opens .br3 and .br5 scene files"
-license-file = "LICENSE"
+license = "MIT"
 repository = "https://github.com/lefotugrapher/kayzee-3d"
 
 [dependencies]
