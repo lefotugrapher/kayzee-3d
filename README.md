@@ -5,6 +5,10 @@ Build scenes from terrains, water, primitives, lights and imported models, set t
 It also opens old `.br3` and `.br5` scene files, so scenes made years ago can be worked on again
 on a current machine.
 
+Kayzee 3D is heavily inspired by Bryce 3D, the 1990s landscape program: its way of working, its
+workspace arrangement and its feel. It is a tribute written from scratch, not a copy of that program
+(see the disclaimer at the end).
+
 ![The workspace with a rendered scene](screenshots/rendered.png)
 
 | Wireframe workspace | Terrain Editor |
