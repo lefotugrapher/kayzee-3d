@@ -9,6 +9,9 @@ Kayzee 3D is heavily inspired by Bryce 3D, the 1990s landscape program: its way 
 workspace arrangement and its feel. It is a tribute written from scratch, not a copy of that program
 (see the disclaimer at the end).
 
+The idea to build it came from [this Instagram reel](https://www.instagram.com/reel/Df-_-wOP7vv/).
+Credit to its creator for the spark.
+
 ![The workspace with a rendered scene](screenshots/rendered.png)
 
 | Wireframe workspace | Terrain Editor |
