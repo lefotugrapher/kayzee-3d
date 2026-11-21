@@ -213,6 +213,7 @@ fn attributes(app: &mut App, ctx: &egui::Context) {
                     }
                 }
             }
+            crate::anim::set_link_rest(&mut app.doc.project, id);
             crate::state::aim_trackers(&mut app.doc.project);
             app.doc.touch();
         }
@@ -338,7 +339,7 @@ fn render_options(app: &mut App, ctx: &egui::Context) {
     let mut open = true;
     egui::Window::new("Render Options").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
         let r = &mut app.doc.project.render;
-        let before = (r.antialias, r.spatial, r.panorama, r.scale, r.mode.clone(), r.fill_outputs);
+        let before = (r.antialias, r.spatial, r.panorama, r.scale, r.mode.clone(), r.fill_outputs, r.fx.clone());
         ui.label("Anti-aliasing");
         ui.horizontal(|ui| {
             ui.radio_value(&mut r.antialias, 0, "Off (fast)");
@@ -351,8 +352,23 @@ fn render_options(app: &mut App, ctx: &egui::Context) {
             ui.radio_value(&mut r.mode, String::new(), "Picture");
             ui.radio_value(&mut r.mode, "distance".to_owned(), "Distance mask").on_hover_text("A grey picture: near is dark, far is light");
             ui.radio_value(&mut r.mode, "altitude".to_owned(), "Altitude mask").on_hover_text("A grey picture: low is dark, high is light");
+            ui.radio_value(&mut r.mode, "mask".to_owned(), "Object mask").on_hover_text("White where the selected objects are, black elsewhere");
         });
         ui.checkbox(&mut r.panorama, "360° panorama");
+        ui.separator();
+        kit::heading(ui, "PICTURE EFFECTS");
+        let fx = &mut r.fx;
+        ui.add(egui::Slider::new(&mut fx.grain, 0.0..=1.0).text("Film grain"));
+        ui.horizontal(|ui| {
+            ui.add(egui::Slider::new(&mut fx.tint_amount, 0.0..=1.0).text("Colour wash"));
+            kit::colour_well(ui, &mut fx.tint, "Wash colour");
+        });
+        ui.add(egui::Slider::new(&mut fx.saturation, -1.0..=1.0).text("Saturation"));
+        ui.add(egui::Slider::new(&mut fx.contrast, -1.0..=1.0).text("Contrast"));
+        ui.add(egui::Slider::new(&mut fx.vignette, 0.0..=1.0).text("Dark corners"));
+        if ui.small_button("No effects").clicked() {
+            *fx = crate::model::Effects::default();
+        }
         ui.checkbox(&mut r.fill_outputs, "Complete textures that surfaces ask more of").on_hover_text("Some old surfaces ask a texture for colour or bump it was never set to make; the original program used leftover values there. On: the texture makes it, so the scene renders (close, not exact). Off: such scenes are refused.");
         ui.horizontal(|ui| {
             ui.label("Render size");
@@ -364,7 +380,7 @@ fn render_options(app: &mut App, ctx: &egui::Context) {
         let k = app.doc.project.render.scale;
         ui.label(RichText::new(format!("Picture: {} × {} pixels", (size[0] as f64 * k).round(), (size[1] as f64 * k).round())).color(kit::DIM).small());
         let r = &app.doc.project.render;
-        if before != (r.antialias, r.spatial, r.panorama, r.scale, r.mode.clone(), r.fill_outputs) {
+        if before != (r.antialias, r.spatial, r.panorama, r.scale, r.mode.clone(), r.fill_outputs, r.fx.clone()) {
             app.doc.dirty = true;
         }
         // shadows, transparency and textures are switches of the scene
@@ -526,7 +542,8 @@ fn start_movie(app: &mut App, out: PathBuf, frames_only: bool) {
                     anim::pose(&mut posed, *t);
                     crate::state::aim_trackers(&mut posed);
                     let text = emit::description(&posed, size, posed.render.antialias);
-                    let picture = job::render_now(&text, &setup::substrate_path(), 0).map_err(|e| format!("Frame {} could not be rendered: {e}", i + 1))?;
+                    let mut picture = job::render_now(&text, &setup::substrate_path(), 0).map_err(|e| format!("Frame {} could not be rendered: {e}", i + 1))?;
+                    posed.render.fx.apply(picture.width, picture.height, &mut picture.levels);
                     let file = folder.join(format!("{}-{:04}.png", project.name, i + 1));
                     std::fs::write(&file, picture.png()).map_err(|e| format!("Cannot write {}: {e}", file.display()))?;
                     files.push(file);

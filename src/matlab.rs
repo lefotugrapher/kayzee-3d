@@ -420,6 +420,54 @@ fn rgb_to_hex(c: [f32; 3]) -> Value {
     json!(format!("{:06x}", f(c[0]) << 16 | f(c[1]) << 8 | f(c[2])))
 }
 
+/// The names of noise types, methods, blends, filters and colour modes, from the disc's tables.
+#[derive(Default, Clone)]
+pub struct Names {
+    pub noise: Vec<String>,
+    pub method: Vec<String>,
+    pub blend: Vec<String>,
+    pub filter: Vec<String>,
+    pub colour_mode: Vec<String>,
+}
+
+pub fn names() -> &'static Names {
+    static NAMES: std::sync::OnceLock<Names> = std::sync::OnceLock::new();
+    NAMES.get_or_init(|| {
+        use stecyk3d::substrate::{TableData, TableName};
+        let Ok(sub) = stecyk3d::substrate::load(&crate::setup::substrate_path()) else { return Names::default() };
+        let get = |t: TableName| -> Vec<String> {
+            match sub.table(t).map(|t| &t.data) {
+                Ok(TableData::Labels(l)) => l.iter().map(|b| stecyk3d::scene_export::mac_roman(b).trim().to_owned()).collect(),
+                _ => Vec::new(),
+            }
+        };
+        Names { noise: get(TableName::NoiseNames), method: get(TableName::MethodNames), blend: get(TableName::BlendNames), filter: get(TableName::FilterNames), colour_mode: get(TableName::ColorModeNames) }
+    })
+}
+
+/// A menu of named choices for a number setting (a plain number box when there are no names).
+fn pick(ui: &mut egui::Ui, v: &mut Value, labels: &[String], what: &str, salt: impl std::hash::Hash) -> bool {
+    let n = v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)).unwrap_or(0);
+    if labels.is_empty() {
+        return drag(ui, v, 0.1, what);
+    }
+    let text = labels.get(n as usize).filter(|l| !l.is_empty()).cloned().unwrap_or_else(|| format!("{what} {n}"));
+    let mut changed = false;
+    ui.label(RichText::new(what).small().color(kit::DIM));
+    egui::ComboBox::from_id_salt(salt).width(130.0).selected_text(text).show_ui(ui, |ui| {
+        for (k, l) in labels.iter().enumerate() {
+            if l.is_empty() {
+                continue;
+            }
+            if ui.selectable_label(k as i64 == n, l).clicked() && k as i64 != n {
+                *v = json!(k);
+                changed = true;
+            }
+        }
+    });
+    changed
+}
+
 fn drag(ui: &mut egui::Ui, v: &mut Value, speed: f64, label: &str) -> bool {
     let mut x = v.as_f64().unwrap_or(0.0);
     let changed = ui.add(egui::DragValue::new(&mut x).speed(speed).prefix(format!("{label} ")).max_decimals(4)).changed();
@@ -429,7 +477,7 @@ fn drag(ui: &mut egui::Ui, v: &mut Value, speed: f64, label: &str) -> bool {
     changed
 }
 
-fn colours_row(ui: &mut egui::Ui, c: &mut Value) -> bool {
+fn colours_row(ui: &mut egui::Ui, c: &mut Value, salt: &str) -> bool {
     let mut changed = false;
     for key in ["a", "b", "c"] {
         let mut rgb = hex_to_rgb(&c[key]);
@@ -438,7 +486,7 @@ fn colours_row(ui: &mut egui::Ui, c: &mut Value) -> bool {
             changed = true;
         }
     }
-    changed |= drag(ui, &mut c["mode"], 0.1, "blend mode");
+    changed |= pick(ui, &mut c["mode"], &names().colour_mode, "colour mode", ("cm", salt));
     changed
 }
 
@@ -515,11 +563,11 @@ fn texture_editor(app: &mut App, ctx: &egui::Context, t: usize) {
             });
             ui.horizontal(|ui| {
                 ui.label("Colours");
-                colours_row(ui, &mut body["colours"]);
+                colours_row(ui, &mut body["colours"], "whole");
             });
             ui.horizontal(|ui| {
                 ui.label("Filter");
-                drag(ui, &mut body["filter"]["number"], 0.1, "kind");
+                pick(ui, &mut body["filter"]["number"], &names().filter, "filter", "wf");
                 drag(ui, &mut body["filter"]["a"], 0.01, "a");
                 drag(ui, &mut body["filter"]["b"], 0.01, "b");
             });
@@ -531,7 +579,7 @@ fn texture_editor(app: &mut App, ctx: &egui::Context, t: usize) {
                 ui.horizontal(|ui| {
                     ui.label("Combine components");
                     for (k, b) in blend.iter_mut().enumerate() {
-                        drag(ui, b, 0.1, if k == 0 { "1+2" } else { "+3" });
+                        pick(ui, b, &names().blend, if k == 0 { "1 with 2" } else { "with 3" }, ("bl", k));
                     }
                 });
             }
@@ -562,8 +610,8 @@ fn texture_editor(app: &mut App, ctx: &egui::Context, t: usize) {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Noise");
-                        drag(ui, &mut c["noise"]["type"], 0.1, "type");
-                        drag(ui, &mut c["noise"]["method"], 0.1, "mode");
+                        pick(ui, &mut c["noise"]["type"], &names().noise, "type", ("nt", k));
+                        pick(ui, &mut c["noise"]["method"], &names().method, "mode", ("nm", k));
                         drag(ui, &mut c["noise"]["octaves"], 0.1, "octaves");
                         drag(ui, &mut c["noise"]["dimension"], 0.05, "dimensions");
                     });
@@ -583,7 +631,7 @@ fn texture_editor(app: &mut App, ctx: &egui::Context, t: usize) {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Filter");
-                        drag(ui, &mut c["filter"]["number"], 0.1, "kind");
+                        pick(ui, &mut c["filter"]["number"], &names().filter, "filter", ("cf", k));
                         drag(ui, &mut c["filter"]["a"], 0.01, "a");
                         drag(ui, &mut c["filter"]["b"], 0.01, "b");
                         ui.label("Phase");
@@ -591,7 +639,7 @@ fn texture_editor(app: &mut App, ctx: &egui::Context, t: usize) {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Colours");
-                        colours_row(ui, &mut c["colours"]);
+                        colours_row(ui, &mut c["colours"], &format!("c{k}"));
                     });
                 }
             }

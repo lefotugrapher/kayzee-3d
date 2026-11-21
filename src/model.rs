@@ -210,6 +210,9 @@ pub struct Node {
     /// The object this one follows (its placement is carried along).
     #[serde(default)]
     pub link: Option<u64>,
+    /// Where this object sits in its link parent's own space (set when linked).
+    #[serde(default)]
+    pub link_rest: Option<M12>,
     /// The object this one keeps facing.
     #[serde(default)]
     pub track: Option<u64>,
@@ -244,6 +247,77 @@ pub struct RenderOpts {
     /// produce it, so the scene renders instead of being refused.
     #[serde(default = "yes")]
     pub fill_outputs: bool,
+    /// Picture effects applied after rendering.
+    #[serde(default)]
+    pub fx: Effects,
+}
+
+/// Finishing touches on a rendered picture.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Effects {
+    /// Film grain, 0..1.
+    pub grain: f32,
+    /// Colour wash over the picture and how strong it is (0..1).
+    pub tint: [f32; 3],
+    pub tint_amount: f32,
+    /// -1 (grey) .. 1 (vivid).
+    pub saturation: f32,
+    /// -1 (flat) .. 1 (punchy).
+    pub contrast: f32,
+    /// Darkened corners, 0..1.
+    pub vignette: f32,
+}
+
+impl Default for Effects {
+    fn default() -> Self {
+        Effects { grain: 0.0, tint: [0.75, 0.55, 1.0], tint_amount: 0.0, saturation: 0.0, contrast: 0.0, vignette: 0.0 }
+    }
+}
+
+impl Effects {
+    pub fn is_none(&self) -> bool {
+        self.grain == 0.0 && self.tint_amount == 0.0 && self.saturation == 0.0 && self.contrast == 0.0 && self.vignette == 0.0
+    }
+
+    /// Apply to RGB levels, in place.
+    pub fn apply(&self, w: u32, h: u32, rgb: &mut [u8]) {
+        if self.is_none() {
+            return;
+        }
+        let mut seed = 0x9E37_79B9_7F4A_7C15u64;
+        let (cx, cy) = (w as f32 * 0.5, h as f32 * 0.5);
+        let reach = (cx * cx + cy * cy).sqrt().max(1.0);
+        for (i, px) in rgb.chunks_exact_mut(3).enumerate() {
+            let (x, y) = ((i as u32 % w) as f32, (i as u32 / w) as f32);
+            let mut c = [px[0] as f32 / 255.0, px[1] as f32 / 255.0, px[2] as f32 / 255.0];
+            let grey = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+            for k in 0..3 {
+                c[k] = grey + (c[k] - grey) * (1.0 + self.saturation);
+                c[k] = 0.5 + (c[k] - 0.5) * (1.0 + self.contrast);
+                // a tint multiplies the light parts and lifts the shadows a little
+                let tinted = c[k] * self.tint[k] + 0.08 * self.tint[k] * (1.0 - c[k]);
+                c[k] += (tinted - c[k]) * self.tint_amount;
+            }
+            if self.vignette > 0.0 {
+                let d = (((x - cx).powi(2) + (y - cy).powi(2)).sqrt() / reach).powi(2);
+                for v in &mut c {
+                    *v *= 1.0 - self.vignette * d;
+                }
+            }
+            if self.grain > 0.0 {
+                seed ^= seed << 13;
+                seed ^= seed >> 7;
+                seed ^= seed << 17;
+                let n = ((seed >> 40) as f32 / (1u64 << 24) as f32 - 0.5) * 0.35 * self.grain;
+                for v in &mut c {
+                    *v += n;
+                }
+            }
+            for k in 0..3 {
+                px[k] = (c[k].clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
+            }
+        }
+    }
 }
 
 fn yes() -> bool {
@@ -252,7 +326,7 @@ fn yes() -> bool {
 
 impl Default for RenderOpts {
     fn default() -> Self {
-        RenderOpts { antialias: 1, spatial: true, mode: String::new(), panorama: false, scale: 1.0, fill_outputs: true }
+        RenderOpts { antialias: 1, spatial: true, mode: String::new(), panorama: false, scale: 1.0, fill_outputs: true, fx: Effects::default() }
     }
 }
 
@@ -423,6 +497,7 @@ impl Project {
             family: 0,
             as_box: false,
             link: None,
+            link_rest: None,
             track: None,
             keys: Vec::new(),
             flags: [0; 3],

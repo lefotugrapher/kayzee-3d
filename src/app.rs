@@ -330,8 +330,14 @@ impl App {
         let p = &self.doc.project;
         let k = p.render.scale.max(0.05);
         let size = (((p.size[0] as f64) * k).round().max(8.0) as u32, ((p.size[1] as f64) * k).round().max(8.0) as u32);
-        let text = emit::description(p, size, p.render.antialias);
-        let job = job::start_mode(text, setup::substrate_path(), size, ctx.clone(), p.render.mode.clone());
+        let marked: Vec<u64> = if p.render.mode == "mask" { self.doc.selection.iter().flat_map(|s| p.with_descendants(*s)).collect() } else { Vec::new() };
+        if p.render.mode == "mask" && marked.is_empty() {
+            self.warn("A mask render shows the selected objects: select something first.");
+            return;
+        }
+        let text = emit::description_marked(p, size, p.render.antialias, &marked);
+        let fx = if p.render.mode.is_empty() { p.render.fx.clone() } else { crate::model::Effects::default() };
+        let job = job::start_full(text, setup::substrate_path(), size, ctx.clone(), p.render.mode.clone(), fx);
         if keep { self.main.restart(job) } else { self.main.job = Some(job) }
         self.show_picture = true;
         self.message = None;
@@ -460,6 +466,12 @@ impl App {
                 });
             }
         }
+        if kit::shelf_button(ui, size, "Tree", solid::tree).clicked() {
+            create::add_tree(&mut self.doc, &mut self.rng);
+        }
+        if kit::shelf_button(ui, size, "Human figure", solid::figure).clicked() {
+            create::add_figure(&mut self.doc);
+        }
         if kit::shelf_button(ui, size, "Picture object: a flat face showing a picture", solid::picture).clicked() {
             dialogs::add_picture_object(self);
         }
@@ -472,60 +484,45 @@ impl App {
     }
 
     fn edit_palette(&mut self, ui: &mut egui::Ui) {
-        let size = Vec2::new(58.0, 58.0);
+        use kit::edit_faces as f;
+        let size = 40.0;
         let some = !self.doc.selection.is_empty();
+        kit::shelf(ui, size, 23.0 * (size + 4.0) + 60.0);
+        ui.spacing_mut().item_spacing.x = 4.0;
+        ui.add_space(8.0);
         ui.add_enabled_ui(some, |ui| {
-            if kit::tool_button(ui, size, "Materials", "Open the Materials Lab for the selection", false, face::material).clicked() {
+            if kit::shelf_button(ui, size, "Materials Lab: the selection's surface", f::materials).clicked() {
                 matlab::open(self);
             }
-            ui.add_space(8.0);
-            // each tool: three strips to drag, one per axis, and one for all three
-            let strip = Vec2::new(26.0, 26.0);
-            let axes = [("X", Color32::from_rgb(0xe0, 0x6c, 0x5a)), ("Y", Color32::from_rgb(0x7c, 0xc4, 0x8a)), ("Z", Color32::from_rgb(0x5c, 0x98, 0xe6))];
-            ui.vertical(|ui| {
-                kit::heading(ui, "RESIZE");
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 3.0;
-                    for (k, (label, colour)) in axes.iter().enumerate() {
-                        let (d, resp) = kit::axis_strip(ui, strip, label, *colour, "Drag to resize along this axis");
-                        self.drag_edit(&resp, d, |doc, d| {
-                            let mut f = [1.0; 3];
-                            f[k] = (1.0 + d * 0.01).max(0.02);
-                            doc.scale_own(f);
-                        });
+            ui.add_space(10.0);
+            for (k, tip) in ["Resize along X (drag sideways)", "Resize along Y (drag sideways)", "Resize along Z (drag sideways)", "Resize evenly (drag sideways)"].iter().enumerate() {
+                let (d, resp) = kit::shelf_drag(ui, size, tip, f::resize(k as u8));
+                self.drag_edit(&resp, d, |doc, d| {
+                    let mut fac = [1.0; 3];
+                    if k == 3 {
+                        fac = [(1.0 + d * 0.01).max(0.02); 3];
+                    } else {
+                        fac[k] = (1.0 + d * 0.01).max(0.02);
                     }
-                    let (d, resp) = kit::axis_strip(ui, strip, "All", kit::TEXT, "Drag to resize evenly");
-                    self.drag_edit(&resp, d, |doc, d| doc.scale_own([(1.0 + d * 0.01).max(0.02); 3]));
+                    doc.scale_own(fac);
                 });
-            });
-            ui.add_space(8.0);
-            ui.vertical(|ui| {
-                kit::heading(ui, "ROTATE");
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 3.0;
-                    for (k, (label, colour)) in axes.iter().enumerate() {
-                        let (d, resp) = kit::axis_strip(ui, strip, label, *colour, "Drag to turn about this axis (shift: steps of 45°)");
-                        self.drag_edit(&resp, d, |doc, d| doc.rotate_own(k, d * 0.012));
-                    }
+            }
+            ui.add_space(10.0);
+            for (k, tip) in ["Rotate about X (drag sideways)", "Rotate about Y (drag sideways)", "Rotate about Z (drag sideways)"].iter().enumerate() {
+                let (d, resp) = kit::shelf_drag(ui, size, tip, f::rotate(k as u8));
+                self.drag_edit(&resp, d, |doc, d| doc.rotate_own(k, d * 0.012));
+            }
+            ui.add_space(10.0);
+            for (k, tip) in ["Move along X (drag sideways)", "Move along Y (drag sideways)", "Move along Z (drag sideways)"].iter().enumerate() {
+                let (d, resp) = kit::shelf_drag(ui, size, tip, f::reposition(k as u8));
+                self.drag_edit(&resp, d, |doc, d| {
+                    let mut by = [0.0; 3];
+                    by[k] = d * 0.02;
+                    doc.move_selection(by);
                 });
-            });
-            ui.add_space(8.0);
-            ui.vertical(|ui| {
-                kit::heading(ui, "REPOSITION");
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 3.0;
-                    for (k, (label, colour)) in axes.iter().enumerate() {
-                        let (d, resp) = kit::axis_strip(ui, strip, label, *colour, "Drag to move along this world axis");
-                        self.drag_edit(&resp, d, |doc, d| {
-                            let mut by = [0.0; 3];
-                            by[k] = d * 0.02;
-                            doc.move_selection(by);
-                        });
-                    }
-                });
-            });
-            ui.add_space(8.0);
-            let align = kit::tool_button(ui, size, "Align", "Line the selection up (click for choices)", false, face::align);
+            }
+            ui.add_space(10.0);
+            let align = kit::shelf_button(ui, size, "Align the selection (click for choices)", f::align);
             kit::menu_below(ui, &align, false, |ui| {
                 for (axis, name) in ["X", "Y", "Z"].iter().enumerate() {
                     for (mode, how) in ["low sides", "centres", "high sides"].iter().enumerate() {
@@ -538,10 +535,7 @@ impl App {
                     }
                 }
             });
-            let (d, resp) = {
-                let r = kit::tool_button(ui, size, "Randomize", "Drag sideways to scatter the selection; right-click for what to scatter", false, face::scatter);
-                (if r.dragged() { r.drag_delta().x } else { 0.0 }, r)
-            };
+            let (d, resp) = kit::shelf_drag(ui, size, "Randomize: drag sideways to scatter the selection; right-click for what to scatter", f::scatter);
             let what = self.randomize_what;
             let mut seed = self.rng;
             self.drag_edit(&resp, d, |doc, d| doc.randomize_selection((d.abs() * 0.004).min(0.5), what, &mut seed));
@@ -554,26 +548,25 @@ impl App {
                     }
                 }
             });
-            if kit::tool_button(ui, size, "Land", "Drop the selection onto whatever is below it", false, face::down_to_ground).clicked() {
+            if kit::shelf_button(ui, size, "Land: drop the selection onto what is below it", f::land).clicked() {
                 self.doc.land_selection();
             }
-            ui.add_space(8.0);
+            ui.add_space(10.0);
             let editable = self.doc.one().map(|n| match &n.shape {
                 Shape::Terrain(_) => "Edit Terrain",
                 Shape::Light(_) => "Edit Light",
-                Shape::Torus { .. } => "Edit Torus",
-                _ => "Attributes",
+                _ => "Object attributes",
             });
-            if kit::tool_button(ui, size, "Edit", editable.unwrap_or("Object attributes"), false, face::pencil).clicked() {
+            if kit::shelf_button(ui, size, editable.unwrap_or("Object attributes"), f::pencil).clicked() {
                 self.edit_object();
             }
-            if kit::tool_button(ui, size, "Group", "Group the selection (⌘G)", false, face::group).clicked() {
+            if kit::shelf_button(ui, size, "Group the selection (⌘G)", f::group).clicked() {
                 self.doc.group_selection();
             }
-            if kit::tool_button(ui, size, "Ungroup", "Ungroup (⌘U)", false, face::ungroup).clicked() {
+            if kit::shelf_button(ui, size, "Ungroup (⌘U)", f::ungroup).clicked() {
                 self.doc.ungroup_selection();
             }
-            let conv = kit::tool_button(ui, size, "Convert", "Turn the selection into another kind of object", false, face::text("⇄"));
+            let conv = kit::shelf_button(ui, size, "Convert the selection into another kind of object", f::convert);
             kit::menu_below(ui, &conv, false, |ui| {
                 for (label, shape) in [("Sphere", Shape::Sphere), ("Cube", Shape::Cube), ("Cylinder", Shape::Cylinder), ("Cone", Shape::Cone), ("Pyramid", Shape::Pyramid), ("Torus", Shape::Torus { tube: 0.25, ring: 0.75 }), ("Disc", Shape::Disc), ("Square", Shape::Square)] {
                     if ui.button(label).clicked() {
@@ -1468,6 +1461,11 @@ impl eframe::App for App {
 
         // record keys for whatever changed, then let the preview catch up
         if self.doc.revision != self.key_base.0 {
+            // a child moved on its own: its place relative to its parent changes
+            let ids: Vec<u64> = self.doc.project.nodes.iter().filter(|n| n.link.is_some()).map(|n| n.id).collect();
+            for id in ids {
+                crate::anim::set_link_rest(&mut self.doc.project, id);
+            }
             let base = std::mem::take(&mut self.key_base.1);
             anim::record(&mut self.doc, &base);
             self.rebase();

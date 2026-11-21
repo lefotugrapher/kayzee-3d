@@ -712,6 +712,24 @@ pub mod solid {
         poly(p, r, &[(0.2, 0.84), (0.4, 0.5), (0.56, 0.7), (0.66, 0.58), (0.8, 0.84)], Color32::from_rgb(0x50, 0x80, 0x48));
         oval(p, r, 0.66, 0.32, 0.07, 0.07, GOLD);
     }
+    pub fn tree(p: &Painter, r: Rect) {
+        shadow(p, r);
+        poly(p, r, &[(0.46, 0.92), (0.47, 0.5), (0.53, 0.5), (0.54, 0.92)], Color32::from_rgb(0x6a, 0x48, 0x2a));
+        for (x, y, k) in [(0.5f32, 0.34f32, 0.3f32), (0.32, 0.46, 0.2), (0.68, 0.46, 0.2), (0.5, 0.18, 0.18)] {
+            for j in 0..5 {
+                let t = j as f32 / 4.0;
+                oval(p, r, x - 0.05 * t, y - 0.05 * t, k * (1.0 - 0.7 * t), k * 0.85 * (1.0 - 0.7 * t), mix(Color32::from_rgb(0x2a, 0x50, 0x1c), Color32::from_rgb(0x8c, 0xc0, 0x5a), t));
+            }
+        }
+    }
+    pub fn figure(p: &Painter, r: Rect) {
+        shadow(p, r);
+        let c = GOLD;
+        for (a, b, w) in [((0.5f32, 0.3f32), (0.5f32, 0.6f32), 0.09f32), ((0.5, 0.36), (0.16, 0.3), 0.04), ((0.5, 0.36), (0.84, 0.3), 0.04), ((0.47, 0.6), (0.36, 0.95), 0.05), ((0.53, 0.6), (0.64, 0.95), 0.05)] {
+            p.line_segment([at(r, a.0, a.1), at(r, b.0, b.1)], Stroke::new(w * r.width(), c));
+        }
+        ball(p, at(r, 0.5, 0.16), r.width() * 0.09, c);
+    }
     pub fn model(p: &Painter, r: Rect) {
         shadow(p, r);
         block(p, r, GREY, 0.5, 0.5);
@@ -797,4 +815,137 @@ pub fn bare_icon(ui: &mut Ui, size: f32, tip: &str, on: bool, draw: impl FnOnce(
     }
     draw(&p, rect.shrink(size * 0.2), if resp.hovered() { ACCENT } else { Color32::from_gray(40) });
     resp.on_hover_text(keys(tip))
+}
+
+/// The tray the palettes' tools stand on, `count` tools of `size` wide.
+pub fn shelf(ui: &mut Ui, size: f32, width: f32) {
+    let origin = ui.cursor().min;
+    let (top, bottom) = (origin.y + size * 0.5, origin.y + size + 8.0);
+    ui.painter().add(egui::Shape::convex_polygon(
+        vec![Pos2::new(origin.x + 10.0, top), Pos2::new(origin.x + width, top), Pos2::new(origin.x + width - 10.0, bottom), Pos2::new(origin.x - 4.0, bottom)],
+        Color32::from_gray(236),
+        Stroke::new(1.0, Color32::from_gray(150)),
+    ));
+    ui.painter().line_segment([Pos2::new(origin.x - 4.0, bottom + 1.5), Pos2::new(origin.x + width - 10.0, bottom + 1.5)], Stroke::new(2.0, Color32::from_black_alpha(60)));
+}
+
+/// A shelf tool that is dragged sideways (returns the drag).
+pub fn shelf_drag(ui: &mut Ui, size: f32, tip: &str, draw: impl FnOnce(&Painter, Rect)) -> (f32, Response) {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click_and_drag());
+    let p = ui.painter_at(rect.expand(4.0));
+    let lift = if resp.hovered() || resp.dragged() { Vec2::new(0.0, -3.0) } else { Vec2::ZERO };
+    if resp.dragged() {
+        p.circle_filled(rect.center(), size * 0.5, Color32::from_white_alpha(120));
+    }
+    draw(&p, rect.shrink(3.0).translate(lift));
+    let d = if resp.dragged() { resp.drag_delta() } else { Vec2::ZERO };
+    (d.x - d.y, resp.on_hover_cursor(CursorIcon::ResizeHorizontal).on_hover_text(keys(tip)))
+}
+
+pub mod edit_faces {
+    use super::solid::{BLUE, GOLD, GREY, arrow, ball, mix};
+    use super::*;
+
+    fn cube(p: &Painter, r: Rect) {
+        super::solid::cube(p, r.shrink(r.width() * 0.18));
+    }
+    /// A blue cube with arrows on the axes given (0 x, 1 y, 2 z, 3 all).
+    pub fn resize(axis: u8) -> impl FnOnce(&Painter, Rect) {
+        move |p, r| {
+            cube(p, r);
+            let c = r.center();
+            let s = r.width() * 0.46;
+            let dirs: &[Vec2] = match axis {
+                0 => &[Vec2::new(1.0, 0.0), Vec2::new(-1.0, 0.0)],
+                1 => &[Vec2::new(0.0, -1.0), Vec2::new(0.0, 1.0)],
+                2 => &[Vec2::new(0.7, -0.5), Vec2::new(-0.7, 0.5)],
+                _ => &[Vec2::new(0.7, -0.7), Vec2::new(-0.7, 0.7), Vec2::new(0.7, 0.7), Vec2::new(-0.7, -0.7)],
+            };
+            for d in dirs {
+                arrow(p, c + *d * s, *d, s * 0.34, s * 0.24, GOLD);
+            }
+        }
+    }
+    /// A blue cube with a curved arrow about an axis.
+    pub fn rotate(axis: u8) -> impl FnOnce(&Painter, Rect) {
+        move |p, r| {
+            cube(p, r);
+            let c = r.center();
+            let (rx, ry) = match axis {
+                0 => (r.width() * 0.16, r.height() * 0.44),
+                1 => (r.width() * 0.46, r.height() * 0.16),
+                _ => (r.width() * 0.4, r.height() * 0.4),
+            };
+            let pts: Vec<Pos2> = (0..=20).map(|k| {
+                let a = -0.4 + 4.6 * k as f32 / 20.0;
+                c + Vec2::new(rx * a.cos(), ry * a.sin())
+            }).collect();
+            p.add(egui::Shape::line(pts.clone(), Stroke::new(2.5, GOLD)));
+            let (a, b) = (pts[19], pts[20]);
+            arrow(p, b, (b - a).normalized(), r.width() * 0.16, r.width() * 0.11, GOLD);
+        }
+    }
+    /// A blue cube with a straight arrow along an axis.
+    pub fn reposition(axis: u8) -> impl FnOnce(&Painter, Rect) {
+        move |p, r| {
+            cube(p, r);
+            let d = match axis {
+                0 => Vec2::new(1.0, 0.0),
+                1 => Vec2::new(0.0, -1.0),
+                _ => Vec2::new(0.7, -0.5),
+            };
+            let c = r.center();
+            p.line_segment([c - d * r.width() * 0.3, c + d * r.width() * 0.38], Stroke::new(2.5, GOLD));
+            arrow(p, c + d * r.width() * 0.5, d, r.width() * 0.18, r.width() * 0.13, GOLD);
+        }
+    }
+    pub fn materials(p: &Painter, r: Rect) {
+        let c = r.center();
+        let rad = r.width() * 0.42;
+        ball(p, c, rad, Color32::from_rgb(0xc8, 0x50, 0x30));
+        for k in 0..4 {
+            let a = k as f32 * 1.57 + 0.4;
+            p.circle_filled(c + Vec2::new(a.cos(), a.sin()) * rad * 0.5, rad * 0.18, Color32::from_rgba_unmultiplied(255, 230, 120, 160));
+        }
+    }
+    pub fn align(p: &Painter, r: Rect) {
+        let (x0, x1) = (r.left() + r.width() * 0.12, r.left() + r.width() * 0.88);
+        p.line_segment([Pos2::new(x0, r.top()), Pos2::new(x0, r.bottom())], Stroke::new(2.0, Color32::from_gray(60)));
+        for (y, w) in [(0.28f32, 0.5f32), (0.62, 0.76)] {
+            let rr = Rect::from_min_size(Pos2::new(x0 + 2.0, r.top() + r.height() * y - 6.0), Vec2::new((x1 - x0) * w, 12.0));
+            p.rect_filled(rr, 2.0, BLUE);
+            p.rect_filled(Rect::from_min_size(rr.min, Vec2::new(rr.width(), 4.0)), 2.0, mix(BLUE, Color32::WHITE, 0.4));
+        }
+    }
+    pub fn scatter(p: &Painter, r: Rect) {
+        for (x, y, s) in [(0.25f32, 0.3f32, 0.13f32), (0.68, 0.24, 0.16), (0.48, 0.6, 0.11), (0.8, 0.72, 0.12), (0.22, 0.78, 0.14)] {
+            ball(p, Pos2::new(r.left() + x * r.width(), r.top() + y * r.height()), s * r.width(), BLUE);
+        }
+    }
+    pub fn land(p: &Painter, r: Rect) {
+        p.rect_filled(Rect::from_min_max(Pos2::new(r.left(), r.bottom() - r.height() * 0.16), r.max), 2.0, Color32::from_rgb(0xa8, 0x86, 0x62));
+        ball(p, Pos2::new(r.center().x, r.top() + r.height() * 0.3), r.width() * 0.2, BLUE);
+        arrow(p, Pos2::new(r.center().x, r.bottom() - r.height() * 0.2), Vec2::new(0.0, 1.0), r.width() * 0.2, r.width() * 0.16, GOLD);
+    }
+    pub fn pencil(p: &Painter, r: Rect) {
+        let a = Pos2::new(r.left() + r.width() * 0.2, r.bottom() - r.height() * 0.15);
+        let b = Pos2::new(r.right() - r.width() * 0.15, r.top() + r.height() * 0.2);
+        p.line_segment([a, b], Stroke::new(r.width() * 0.2, GOLD));
+        p.line_segment([b - (b - a) * 0.12, b], Stroke::new(r.width() * 0.2, Color32::from_rgb(0xd0, 0x70, 0x80)));
+        p.circle_filled(a, r.width() * 0.07, Color32::from_gray(50));
+    }
+    pub fn group(p: &Painter, r: Rect) {
+        p.rect_stroke(r.shrink(r.width() * 0.08), 3.0, Stroke::new(1.5, Color32::from_gray(70)), StrokeKind::Inside);
+        ball(p, Pos2::new(r.left() + r.width() * 0.36, r.top() + r.height() * 0.42), r.width() * 0.18, BLUE);
+        ball(p, Pos2::new(r.left() + r.width() * 0.64, r.top() + r.height() * 0.6), r.width() * 0.18, GREY);
+    }
+    pub fn ungroup(p: &Painter, r: Rect) {
+        ball(p, Pos2::new(r.left() + r.width() * 0.28, r.top() + r.height() * 0.34), r.width() * 0.18, BLUE);
+        ball(p, Pos2::new(r.left() + r.width() * 0.72, r.top() + r.height() * 0.68), r.width() * 0.18, GREY);
+    }
+    pub fn convert(p: &Painter, r: Rect) {
+        let c = r.center();
+        cube(p, Rect::from_center_size(c - Vec2::new(r.width() * 0.18, 0.0), r.size() * 0.75));
+        ball(p, c + Vec2::new(r.width() * 0.22, r.height() * 0.12), r.width() * 0.2, GREY);
+    }
 }

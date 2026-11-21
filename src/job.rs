@@ -88,6 +88,11 @@ pub fn start(description_text: String, substrate: PathBuf, size: (u32, u32), ctx
 /// As `start`; `mode` may be "distance" or "altitude" for a grey picture of
 /// depth or height instead of the lit picture.
 pub fn start_mode(description_text: String, substrate: PathBuf, size: (u32, u32), ctx: eframe::egui::Context, mode: String) -> Handle {
+    start_full(description_text, substrate, size, ctx, mode, crate::model::Effects::default())
+}
+
+/// As `start_mode`, finishing the picture with `fx`.
+pub fn start_full(description_text: String, substrate: PathBuf, size: (u32, u32), ctx: eframe::egui::Context, mode: String, fx: crate::model::Effects) -> Handle {
     let (w, h) = size;
     let shared = Arc::new(Mutex::new(Shared {
         width: w,
@@ -153,7 +158,8 @@ pub fn start_mode(description_text: String, substrate: PathBuf, size: (u32, u32)
             })();
             let mut s = out.lock().unwrap();
             match result {
-                Ok(p) => {
+                Ok(mut p) => {
+                    fx.apply(p.width, p.height, &mut p.levels);
                     s.width = p.width;
                     s.height = p.height;
                     s.drawn = vec![true; (p.width * p.height) as usize];

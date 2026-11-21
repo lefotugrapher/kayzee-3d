@@ -100,7 +100,7 @@ pub fn set_up_from_image(image: &Path) -> Result<Vec<String>, String> {
     let lib = data.join("Library").join("Disc");
     for e in entries.iter().filter(|e| !e.dir) {
         let lower = e.path.to_lowercase();
-        if [".mat", ".brt", ".obj", ".dxf"].iter().any(|x| lower.ends_with(x)) {
+        if [".mat", ".brt", ".bsk", ".obp", ".obj", ".dxf"].iter().any(|x| lower.ends_with(x)) {
             let dest = lib.join(e.path.replace('/', std::path::MAIN_SEPARATOR_STR));
             if let Some(parent) = dest.parent() {
                 let _ = std::fs::create_dir_all(parent);

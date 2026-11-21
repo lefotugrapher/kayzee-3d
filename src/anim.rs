@@ -30,7 +30,7 @@ pub fn pose(p: &mut Project, t: f64) {
             m.record = if f == 0.0 { a.v.clone() } else { model::blend_value(&a.v, &b.v, ease(f)) };
         }
     }
-    // followers: an object linked to another is carried along by its parent's change
+    follow_links(p);
     p.anim.time = t;
 }
 
@@ -165,5 +165,43 @@ pub fn clear(p: &mut Project) {
     p.anim.sky_keys.clear();
     for m in &mut p.materials {
         m.keys.clear();
+    }
+}
+
+/// Objects linked to another (and without keys of their own) take their place
+/// from their parent: parents first, so chains of links work.
+pub fn follow_links(p: &mut Project) {
+    for _ in 0..8 {
+        let mut moved = false;
+        let placed: Vec<(usize, crate::math::M12)> = p
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.keys.len() < 2)
+            .filter_map(|(i, n)| {
+                let rest = n.link_rest?;
+                let parent = p.node(n.link?)?;
+                let m = crate::math::compose(&parent.m, &rest);
+                (m != n.m).then_some((i, m))
+            })
+            .collect();
+        for (i, m) in placed {
+            p.nodes[i].m = m;
+            moved = true;
+        }
+        if !moved {
+            break;
+        }
+    }
+}
+
+/// Remember where `child` sits relative to its link parent now.
+pub fn set_link_rest(p: &mut Project, child: u64) {
+    let rest = p.node(child).and_then(|n| {
+        let parent = p.node(n.link?)?;
+        Some(crate::math::compose(&crate::math::inverse(&parent.m)?, &n.m))
+    });
+    if let Some(n) = p.node_mut(child) {
+        n.link_rest = rest;
     }
 }

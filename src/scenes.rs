@@ -161,3 +161,22 @@ pub fn dream(sky_from: Option<&Path>) -> Project {
     doc.selection.clear();
     doc.project
 }
+
+/// Trees and a figure close up (used to check the generated shapes).
+pub fn grove() -> Project {
+    let mut doc = Doc::new(create::new_project());
+    let mut seed = 99u64;
+    for (x, z) in [(-2.6, 3.0), (2.8, 4.5), (0.4, 7.0)] {
+        create::add_tree(&mut doc, &mut seed);
+        doc.move_selection([x, 0.0, z]);
+    }
+    create::add_figure(&mut doc);
+    doc.move_selection([0.0, 0.0, 0.0]);
+    let p = &mut doc.project;
+    p.size = [800, 520];
+    p.cam.eye = [0.5, 1.6, -5.5];
+    p.cam.look_at([0.3, 1.3, 2.0]);
+    p.render.antialias = 1;
+    doc.selection.clear();
+    doc.project
+}

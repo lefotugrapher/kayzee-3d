@@ -131,6 +131,11 @@ fn textures_filled(p: &Project) -> Vec<Value> {
 /// The whole scene as a description, to be rendered `size` pixels large.
 /// `antialias`: 0 none, 1 normal (edges redone), 2 fine (16 rays a pixel).
 pub fn description(p: &Project, size: (u32, u32), antialias: u8) -> String {
+    description_marked(p, size, antialias, &[])
+}
+
+/// As `description`; the objects in `marked` are flagged as selected (what a mask render shows).
+pub fn description_marked(p: &Project, size: (u32, u32), antialias: u8, marked: &[u64]) -> String {
     let mut switches = p.extra.get("switches").and_then(Value::as_u64).unwrap_or(959);
     switches &= !0x2000;
     let (aa, spatial) = match antialias {
@@ -157,6 +162,9 @@ pub fn description(p: &Project, size: (u32, u32), antialias: u8) -> String {
         }
         let name = obj_name(n.id);
         let mut entry = json!({ "name": name, "world": n.m });
+        if marked.contains(&n.id) {
+            entry["placement_flags"] = json!([n.flags[0] | 1, n.flags[1], n.flags[2]]);
+        }
         if let Some(i) = n.material.filter(|i| *i < p.materials.len()) {
             entry["material"] = json!(mat_name(i));
         }

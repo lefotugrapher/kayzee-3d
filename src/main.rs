@@ -9,6 +9,7 @@ mod anim_ui;
 mod app;
 mod create;
 mod dialogs;
+mod disc_presets;
 mod emit;
 mod fileio;
 mod import;
@@ -55,9 +56,11 @@ fn tool(args: &[String]) -> Option<Result<(), String>> {
         "--render-file" if args.len() == 3 => Some((|| {
             let p = fileio::open(Path::new(&args[1]))?;
             let text = emit::description(&p, (p.size[0], p.size[1]), p.render.antialias);
-            let pic = job::render_now(&text, &setup::substrate_path(), 0)?;
+            let mut pic = job::render_now(&text, &setup::substrate_path(), 0)?;
+            let raw = pic.levels_sha256_hex();
+            p.render.fx.apply(pic.width, pic.height, &mut pic.levels);
             std::fs::write(&args[2], pic.png()).map_err(|e| e.to_string())?;
-            println!("{} objects, levels {}", p.nodes.len(), pic.levels_sha256_hex());
+            println!("{} objects, levels {}", p.nodes.len(), raw);
             Ok(())
         })()),
         // --render-at SCENE SECONDS OUT.png : pose an animated scene at a time and render it
@@ -79,6 +82,7 @@ fn tool(args: &[String]) -> Option<Result<(), String>> {
         })()),
         "--checks" if args.len() == 2 => Some(checks(Path::new(&args[1]))),
         // --scene dream OUT.ridge [SKY_SCENE] : write an example scene (cloud layers borrowed from SKY_SCENE)
+        "--scene" if args.len() == 3 && args[1] == "grove" => Some(fileio::write(&scenes::grove(), Path::new(&args[2]))),
         "--scene" if args.len() >= 3 && args[1] == "dream" => Some(fileio::write(&scenes::dream(args.get(3).map(Path::new)), Path::new(&args[2]))),
         // --demo OUT.ridge : write the small scene used for the project's pictures
         "--demo" if args.len() == 2 => Some(fileio::write(&demo(), Path::new(&args[1]))),
@@ -91,6 +95,57 @@ fn tool(args: &[String]) -> Option<Result<(), String>> {
             }
             if args.iter().any(|a| a == "--notify") {
                 update::notify("Kayzee 3D", "This is what an update notice looks like.");
+            }
+            Some(Ok(()))
+        }
+        "--disc-presets" => {
+            for f in library::files_with(&["bsk"]).iter() {
+                let r = disc_presets::skies(f);
+                println!("{}: {}", f.display(), r.as_ref().map(|v| format!("{} skies, {} with pictures, first {:?}", v.len(), v.iter().filter(|p| p.thumb.is_some()).count(), v.first().map(|p| &p.name))).unwrap_or_else(|e| e.clone()));
+            }
+            for f in library::files_with(&["obp"]).iter() {
+                let r = disc_presets::terrains(f);
+                println!("{}: {}", f.display(), r.as_ref().map(|v| format!("{} terrains, {} with pictures, first {:?}", v.len(), v.iter().filter(|p| p.thumb.is_some()).count(), v.first().map(|p| &p.name))).unwrap_or_else(|e| e.clone()));
+            }
+            Some(Ok(()))
+        }
+        // --mask SCENE NAME OUT.png : object-mask render of the objects with that name (and their members)
+        "--mask" if args.len() == 4 => Some((|| {
+            let p = fileio::open(Path::new(&args[1]))?;
+            let ids: Vec<u64> = p.nodes.iter().filter(|n| n.name == args[2]).flat_map(|n| p.with_descendants(n.id)).collect();
+            let text = emit::description_marked(&p, (p.size[0], p.size[1]), 0, &ids);
+            let sub = stecyk3d::substrate::load(&setup::substrate_path()).map_err(|e| e.to_string())?;
+            let d = stecyk3d::description::describe_with(&text, &stecyk3d::description::Tables::of(&sub)).map_err(|e| e.to_string())?;
+            let ch = d.choices(stecyk3d::cases::picture::choices_from(&sub));
+            let (pic, _) = stecyk3d::render::render_mode(&d.scene, d.version, &ch, stecyk3d::render::RenderMode::Mask).map_err(|e| e.to_string())?;
+            std::fs::write(&args[3], pic.png()).map_err(|e| e.to_string())?;
+            println!("{} objects marked", ids.len());
+            Ok(())
+        })()),
+        "--names" => {
+            let n = matlab::names();
+            println!("noise {}: {:?}", n.noise.len(), n.noise.iter().take(8).collect::<Vec<_>>());
+            println!("filter {}: {:?}", n.filter.len(), n.filter.iter().take(6).collect::<Vec<_>>());
+            println!("blend {}, method {}, colour modes {}", n.blend.len(), n.method.len(), n.colour_mode.len());
+            Some(Ok(()))
+        }
+        "--link-check" => {
+            let mut doc = state::Doc::new(create::new_project());
+            let mut seed = 1;
+            let parent = create::add(&mut doc, create::Make::Cube, &mut seed);
+            let child = create::add(&mut doc, create::Make::Sphere, &mut seed);
+            doc.move_selection([0.0, 3.0, 0.0]);
+            doc.project.node_mut(child).unwrap().link = Some(parent);
+            anim::set_link_rest(&mut doc.project, child);
+            doc.selection = vec![parent];
+            doc.project.anim.time = 2.0;
+            let before = doc.project.clone();
+            doc.transform_selection(&math::translation([5.0, 0.0, 0.0]));
+            anim::record(&mut doc, &before);
+            for t in [0.0, 1.0, 2.0] {
+                anim::pose(&mut doc.project, t);
+                let (pm, cm) = (doc.project.node(parent).unwrap().m, doc.project.node(child).unwrap().m);
+                println!("t={t}: parent x {:.2}, child x {:.2} y {:.2} (child keeps 3.00 above, same x)", pm[9], cm[9], cm[10]);
             }
             Some(Ok(()))
         }
@@ -115,6 +170,10 @@ fn selftest(out: &Path) -> Result<(), String> {
         let (x, z) = ((k % 7) as f64 * 3.2 - 9.6, (k / 7) as f64 * 3.6);
         doc.move_selection([x, 0.0, z]);
     }
+    create::add_tree(&mut doc, &mut seed);
+    doc.move_selection([-14.0, 0.0, 6.0]);
+    create::add_figure(&mut doc);
+    doc.move_selection([13.0, 0.0, 6.0]);
     // a cut: a cube with a ball taken out
     let a = create::add(&mut doc, Cube, &mut seed);
     doc.move_selection([-13.0, 0.0, 0.0]);

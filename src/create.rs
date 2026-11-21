@@ -277,3 +277,177 @@ pub fn default_sky() -> Value {
         "sun": { "direction": [0.7427813527082074, 0.5570860145311556, -0.3713906763541037], "colour": [1.0, 1.0, 1.0], "intensity": 1.0, "switches": 4195585 }
     })
 }
+
+// --------------------------------------------------------------------------- trees and figures
+
+struct MeshBuild {
+    points: Vec<[f32; 3]>,
+    tris: Vec<[u32; 3]>,
+}
+
+impl MeshBuild {
+    fn new() -> Self {
+        MeshBuild { points: Vec::new(), tris: Vec::new() }
+    }
+    /// A tapered tube from `a` (radius `ra`) to `b` (radius `rb`).
+    fn tube(&mut self, a: V3, b: V3, ra: f64, rb: f64, sides: usize) {
+        let axis = math::unit(math::sub(b, a));
+        let helper = if axis[1].abs() < 0.9 { [0.0, 1.0, 0.0] } else { [1.0, 0.0, 0.0] };
+        let u = math::unit(math::cross(axis, helper));
+        let v = math::cross(axis, u);
+        let base = self.points.len() as u32;
+        for (c, r) in [(a, ra), (b, rb)] {
+            for k in 0..sides {
+                let t = std::f64::consts::TAU * k as f64 / sides as f64;
+                let p = math::add(c, math::add(math::mul(u, r * t.cos()), math::mul(v, r * t.sin())));
+                self.points.push([p[0] as f32, p[1] as f32, p[2] as f32]);
+            }
+        }
+        let s = sides as u32;
+        for k in 0..s {
+            let (i, j) = (base + k, base + (k + 1) % s);
+            self.tris.push([i, j, j + s]);
+            self.tris.push([i, j + s, i + s]);
+        }
+    }
+    /// A small lumpy ball of leaves.
+    fn clump(&mut self, c: V3, r: f64, rng: &mut impl FnMut() -> f64) {
+        let base = self.points.len() as u32;
+        let (rows, cols) = (5usize, 8usize);
+        for i in 0..=rows {
+            let lat = std::f64::consts::PI * i as f64 / rows as f64;
+            for j in 0..cols {
+                let lon = std::f64::consts::TAU * j as f64 / cols as f64;
+                let rr = r * (0.78 + 0.4 * rng());
+                let p = [c[0] + rr * lat.sin() * lon.cos(), c[1] + rr * lat.cos() * 0.85, c[2] + rr * lat.sin() * lon.sin()];
+                self.points.push([p[0] as f32, p[1] as f32, p[2] as f32]);
+            }
+        }
+        for i in 0..rows as u32 {
+            for j in 0..cols as u32 {
+                let a = base + i * cols as u32 + j;
+                let b = base + i * cols as u32 + (j + 1) % cols as u32;
+                self.tris.push([a, a + cols as u32, b]);
+                self.tris.push([b, a + cols as u32, b + cols as u32]);
+            }
+        }
+    }
+    fn done(self) -> MeshData {
+        MeshData { points: Arc::new(self.points), triangles: Arc::new(self.tris), smooth: true }
+    }
+}
+
+/// A tree: branching wood and clumps of leaves, two meshes grouped.
+pub fn add_tree(doc: &mut Doc, seed: &mut u64) -> u64 {
+    doc.checkpoint();
+    *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    let mut s = *seed | 1;
+    let mut rng = move || {
+        s ^= s << 13;
+        s ^= s >> 7;
+        s ^= s << 17;
+        (s >> 11) as f64 / (1u64 << 53) as f64
+    };
+    let (mut wood, mut leaves) = (MeshBuild::new(), MeshBuild::new());
+    // grow: each branch splits into two or three thinner ones
+    let mut stack = vec![([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], 1.25f64, 0.13f64, 0usize)];
+    while let Some((from, dir, len, r, depth)) = stack.pop() {
+        let to = math::add(from, math::mul(dir, len));
+        let r_end = r * 0.68;
+        wood.tube(from, to, r, r_end, if depth < 2 { 7 } else { 5 });
+        if depth >= 4 || r_end < 0.012 {
+            leaves.clump(to, 0.32 + 0.18 * rng(), &mut rng);
+            continue;
+        }
+        let kids = if rng() < 0.4 { 3 } else { 2 };
+        let spin = rng() * std::f64::consts::TAU;
+        for k in 0..kids {
+            let around = spin + std::f64::consts::TAU * k as f64 / kids as f64;
+            let tilt = 0.45 + 0.35 * rng();
+            let side = [around.cos(), 0.0, around.sin()];
+            let next = math::unit(math::add(math::mul(dir, tilt.cos()), math::mul(side, tilt.sin())));
+            let next = math::unit([next[0], next[1] + 0.25, next[2]]);
+            stack.push((to, next, len * (0.66 + 0.12 * rng()), r_end, depth + 1));
+        }
+    }
+    let p = &mut doc.project;
+    let bark = material_named(p, "Bark", || plain([0.32, 0.22, 0.14]));
+    let green = material_named(p, "Leaves", || plain([0.24, 0.42, 0.16]));
+    let a = p.add("Tree Trunk", Shape::Mesh(wood.done()), math::IDENTITY, Some(bark));
+    let b = p.add("Tree Leaves", Shape::Mesh(leaves.done()), math::IDENTITY, Some(green));
+    doc.selection = vec![a, b];
+    let g = doc.group_selection();
+    if let Some(g) = g {
+        let name = doc_name(&doc.project, "Tree");
+        if let Some(n) = doc.project.node_mut(g) {
+            n.name = name;
+        }
+        doc.selection = vec![g];
+    }
+    doc.undo_discard();
+    doc.touch();
+    g.unwrap_or(a)
+}
+
+fn doc_name(p: &Project, base: &str) -> String {
+    p.name_for(base)
+}
+
+/// A standing human figure built from rounded parts, in gold.
+pub fn add_figure(doc: &mut Doc) -> u64 {
+    doc.checkpoint();
+    let p = &mut doc.project;
+    let gold = material_named(p, "Figure Gold", || {
+        json!({"flags": 65536, "channels": {
+            "diffuse_color": [0.85, 0.62, 0.2], "ambient_color": [1.0, 0.9, 0.7], "specular_color": [1.0, 0.95, 0.8], "specular_halo": [0.85, 0.85, 0.85],
+            "diffusion": 0.7, "ambience": 0.2, "specularity": 0.9, "reflection": 0.25, "metallicity": 0.7 }})
+    });
+    let ball = |c: V3, r: V3| sized(r, c);
+    let limb = |a: V3, b: V3, r: f64| {
+        // a cylinder's own axis runs y -1..1: point it from a to b
+        let mid = math::mul(math::add(a, b), 0.5);
+        let half = math::mul(math::sub(b, a), 0.5);
+        let y = half;
+        let helper = if math::unit(y)[1].abs() < 0.9 { [0.0, 1.0, 0.0] } else { [1.0, 0.0, 0.0] };
+        let x = math::mul(math::unit(math::cross(helper, y)), r);
+        let z = math::mul(math::unit(math::cross(x, y)), r);
+        math::from_axes(x, y, z, mid)
+    };
+    let mut parts: Vec<(&str, Shape, M12)> = vec![
+        ("Head", Shape::Sphere, ball([0.0, 1.66, 0.0], [0.1, 0.12, 0.11])),
+        ("Neck", Shape::Cylinder, limb([0.0, 1.47, 0.0], [0.0, 1.57, 0.0], 0.045)),
+        ("Chest", Shape::Sphere, ball([0.0, 1.3, 0.0], [0.19, 0.2, 0.11])),
+        ("Waist", Shape::Sphere, ball([0.0, 1.06, 0.0], [0.15, 0.16, 0.09])),
+        ("Hips", Shape::Sphere, ball([0.0, 0.92, 0.0], [0.17, 0.11, 0.1])),
+    ];
+    for side in [-1.0, 1.0] {
+        let sh = [side * 0.21, 1.42, 0.0];
+        let el = [side * 0.5, 1.5, 0.0];
+        let wr = [side * 0.78, 1.56, 0.0];
+        let hip = [side * 0.1, 0.9, 0.0];
+        let kn = [side * 0.2, 0.5, 0.02];
+        let an = [side * 0.3, 0.08, 0.0];
+        parts.push(("Shoulder", Shape::Sphere, ball(sh, [0.06, 0.06, 0.06])));
+        parts.push(("Upper Arm", Shape::Cylinder, limb(sh, el, 0.045)));
+        parts.push(("Elbow", Shape::Sphere, ball(el, [0.045, 0.045, 0.045])));
+        parts.push(("Forearm", Shape::Cylinder, limb(el, wr, 0.037)));
+        parts.push(("Hand", Shape::Sphere, ball([side * 0.85, 1.57, 0.0], [0.07, 0.035, 0.045])));
+        parts.push(("Thigh", Shape::Cylinder, limb(hip, kn, 0.07)));
+        parts.push(("Knee", Shape::Sphere, ball(kn, [0.06, 0.06, 0.06])));
+        parts.push(("Shin", Shape::Cylinder, limb(kn, an, 0.05)));
+        parts.push(("Foot", Shape::Sphere, ball([side * 0.31, 0.04, -0.06], [0.05, 0.035, 0.11])));
+    }
+    let ids: Vec<u64> = parts.into_iter().map(|(n, s, m)| p.add(n, s, m, Some(gold))).collect();
+    doc.selection = ids.clone();
+    let g = doc.group_selection();
+    if let Some(g) = g {
+        let name = doc_name(&doc.project, "Figure");
+        if let Some(n) = doc.project.node_mut(g) {
+            n.name = name;
+        }
+        doc.selection = vec![g];
+    }
+    doc.undo_discard();
+    doc.touch();
+    g.unwrap_or(ids[0])
+}

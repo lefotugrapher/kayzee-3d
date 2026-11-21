@@ -49,7 +49,7 @@ image and kept on your computer (`~/Library/Application Support/Kayzee 3D` on a 
 ## What it does
 
 - **Create:** water, cloud and ground planes, terrains, stones, symmetric lattices, spheres, tori, cylinders,
-  cubes, pyramids, cones, discs, squares, four kinds of light, picture objects.
+  cubes, pyramids, cones, discs, squares, four kinds of light, trees, a posable human figure, picture objects.
 - **Edit:** move, resize and rotate with handles or the Edit palette; align, randomise, land, group,
   boolean cuts, duplicate and replicate; object attributes, families, hide and lock.
 - **Snapping:** to the ground, to other objects and to a grid. Dragging slides objects over the ground;
@@ -61,7 +61,9 @@ image and kept on your computer (`~/Library/Application Support/Kayzee 3D` on a 
   pictures as heights, clipping, grid sizes from 16 to 1024.
 - **Animation:** keyframes on objects, the camera, the sky and materials; a timeline, playback, a motion
   lab; movies as `.mov` (Mac) or `.avi`, or numbered frames.
-- **Rendering:** three anti-aliasing levels, 360° panorama, distance and altitude masks, and a
+- **Libraries:** the disc's material, texture, sky and terrain presets, with their own pictures.
+- **Picture effects:** film grain, colour wash, saturation, contrast and dark corners.
+- **Rendering:** three anti-aliasing levels, 360° panorama, object, distance and altitude masks, and a
   "stay rendered" mode that keeps the picture up while you edit and redraws it after each change.
 - **Files:** opens `.br3` and `.br5`, saves its own `.ridge` format, imports OBJ, DXF, 3DS and 3DMF,
   saves pictures as PNG, BMP, TIFF or JPEG.
@@ -74,8 +76,8 @@ image and kept on your computer (`~/Library/Application Support/Kayzee 3D` on a 
 - Some old surfaces ask a texture for colour or bump it was never set to make. By default the app
   completes those textures so the scene renders; the result is close, not exact. This can be switched
   off in Render Options.
-- The disc's sky preset (`.bsk`) and object preset (`.obp`) files are not read.
-- Trees and metaballs (from later versions) are not supported.
+- From the disc's object preset (`.obp`) files only terrains are read, not other objects.
+- Trees are Kayzee 3D's own; metaballs (from later versions) are not supported.
 
 ## Updates
 
