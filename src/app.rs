@@ -178,6 +178,8 @@ pub struct App {
     /// The scene revision the picture on show was rendered from.
     rendered_rev: u64,
     test_nudge: Option<Instant>,
+    /// The user chose to work without rendering for now.
+    locked_ok: bool,
     pub update: crate::update::Shared,
     /// The user asked to look (so "you are up to date" is worth saying).
     update_asked: bool,
@@ -217,6 +219,7 @@ impl App {
             prefs_saved: Prefs::load(),
             rendered_rev: 0,
             test_nudge: None,
+            locked_ok: false,
             update: std::sync::Arc::new(std::sync::Mutex::new(crate::update::Status::Idle)),
             update_asked: false,
             update_hidden: false,
@@ -310,7 +313,7 @@ impl App {
 
     pub fn start_render(&mut self, ctx: &egui::Context) {
         if !self.ready {
-            self.warn("Set up from your disc first (File > Set Up From Disc…).");
+            self.warn("Rendering is locked: add your Bryce 3D disc image first (File > Add Bryce 3D Disc Image).");
             return;
         }
         self.render_again(ctx, false);
@@ -1018,8 +1021,12 @@ impl App {
                     self.dlg.document = true;
                     ui.close_menu();
                 }
-                if ui.button("Set Up From Disc…").clicked() {
+                if ui.button("Add Bryce 3D Disc Image (.iso)…").clicked() {
                     self.run_setup();
+                    ui.close_menu();
+                }
+                if ui.button("Add From Disc or Folder…").clicked() {
+                    self.run_setup_folder();
                     ui.close_menu();
                 }
             });
@@ -1208,13 +1215,23 @@ impl App {
     }
 
     pub fn run_setup(&mut self) {
-        let Some(folder) = rfd::FileDialog::new().set_title("Choose your disc or install folder").pick_folder() else { return };
-        match setup::set_up_from(&folder) {
+        let Some(path) = rfd::FileDialog::new().set_title("Choose your Bryce 3D disc image (.iso)").add_filter("Disc image", &["iso", "ISO"]).pick_file() else { return };
+        self.finish_setup(&path);
+    }
+
+    pub fn run_setup_folder(&mut self) {
+        let Some(path) = rfd::FileDialog::new().set_title("Choose the disc or an installed copy").pick_folder() else { return };
+        self.finish_setup(&path);
+    }
+
+    fn finish_setup(&mut self, path: &Path) {
+        match setup::set_up_from_any(path) {
             Ok(_) => {
                 self.ready = setup::ready();
-                self.say("Set up from your disc.");
+                self.lib.reset();
+                self.say("Unlocked. Rendering, previews and the disc's presets are ready.");
             }
-            Err(e) => self.warn(format!("Setup did not finish. {e}")),
+            Err(e) => self.warn(format!("That did not unlock rendering. {e}")),
         }
     }
 
@@ -1298,20 +1315,28 @@ impl App {
     fn working_window(&mut self, ui: &mut egui::Ui) {
         let area = ui.available_rect_before_wrap();
         ui.painter().rect_filled(area, 0.0, kit::PANEL);
-        if !self.ready {
-            let card = Rect::from_center_size(area.center(), Vec2::new(480.0, 190.0));
-            ui.painter().rect_filled(card, 10.0, kit::PANEL);
+        if !self.ready && !self.locked_ok {
+            let card = Rect::from_center_size(area.center(), Vec2::new(520.0, 230.0));
+            ui.painter().rect_filled(card.translate(Vec2::new(3.0, 4.0)), 8.0, Color32::from_black_alpha(60));
+            ui.painter().rect_filled(card, 8.0, Color32::from_gray(244));
             let mut child = ui.new_child(egui::UiBuilder::new().max_rect(card.shrink(20.0)));
-            child.label(RichText::new("Set up from your disc").font(FontId::proportional(19.0)).strong());
-            child.label("Rendering needs a few data tables that only your original disc holds. They are read once, on this Mac, and never leave it. You can build scenes before doing this, but not render them.");
-            child.add_space(8.0);
-            if child.add(egui::Button::new(RichText::new("Choose disc or install folder…").color(kit::INK).strong()).fill(kit::ACCENT)).clicked() {
-                self.run_setup();
-            }
-            if child.small_button("Not now").clicked() {
-                self.ready = true;
-                self.nano_auto = false;
-            }
+            child.label(RichText::new("Unlock rendering").font(FontId::proportional(20.0)).strong());
+            child.label("Everything else works now: build, edit, terrains, materials, animation. To render pictures, add your own Bryce 3D disc image once. No CD drive needed; it stays on this computer.");
+            child.add_space(10.0);
+            child.horizontal(|ui| {
+                if ui.add(egui::Button::new(RichText::new("Add disc image (.iso)…").color(Color32::WHITE).strong()).fill(kit::solid::BLUE)).clicked() {
+                    self.run_setup();
+                }
+                if ui.button("Disc or folder…").clicked() {
+                    self.run_setup_folder();
+                }
+                if ui.button("Not now").clicked() {
+                    self.locked_ok = true;
+                    self.nano_auto = false;
+                }
+            });
+            child.add_space(6.0);
+            child.label(RichText::new("Works with the Bryce 3D (Windows) disc. Kayzee 3D contains no part of Bryce.").small().color(kit::DIM));
             return;
         }
         let (w, h) = (self.doc.project.size[0] as f32, self.doc.project.size[1] as f32);

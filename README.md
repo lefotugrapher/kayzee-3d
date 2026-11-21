@@ -33,14 +33,18 @@ Get the latest build from the [Releases page](https://github.com/lefotugrapher/k
 The Windows build has been checked with automated tests but has had little use on real hardware yet.
 Please open an issue if something does not work.
 
-## First run: set up from your own disc
+## First run: unlock rendering with your Bryce 3D disc image
 
-Rendering needs a few data tables that only an original Bryce 3D disc holds. **None of that data is in
-this repository or in the downloads.** In the app choose **File > Set Up From Disc…** and pick your disc,
-a folder holding its files, or an installed copy. This is done once; the data stays on your machine
-(`~/Library/Application Support/Kayzee 3D` on a Mac, `%APPDATA%\Kayzee 3D` on Windows).
+Everything works straight after download: building, editing, terrains, materials, animation, import
+and export. **Rendering unlocks once you add your own Bryce 3D disc image (`.iso`).** No CD drive is
+needed. Choose **File > Add Bryce 3D Disc Image…** (or the button on the first screen) and pick the file.
+This takes about a second and is done once. A physical disc or an installed copy also works
+(**File > Add From Disc or Folder…**).
 
-You can build scenes without doing this, but not render them.
+Rendering needs a few data tables and presets that only the original disc holds. They belong to
+Bryce's owners, so **none of them are in this repository or the downloads**; they are read from your
+image and kept on your computer (`~/Library/Application Support/Kayzee 3D` on a Mac,
+`%APPDATA%\Kayzee 3D` on Windows). It works with the Bryce 3D (Windows) disc.
 
 ## What it does
 

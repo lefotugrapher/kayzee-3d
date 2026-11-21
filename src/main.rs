@@ -12,6 +12,7 @@ mod dialogs;
 mod emit;
 mod fileio;
 mod import;
+mod iso;
 mod job;
 mod kit;
 mod library;
@@ -37,7 +38,7 @@ use eframe::egui;
 /// Command-line checks used while building the app (no window).
 fn tool(args: &[String]) -> Option<Result<(), String>> {
     match args.first().map(String::as_str)? {
-        "--setup" if args.len() == 2 => Some(setup::set_up_from(Path::new(&args[1])).map(|l| l.iter().for_each(|x| println!("{x}")))),
+        "--setup" if args.len() == 2 => Some(setup::set_up_from_any(Path::new(&args[1])).map(|l| l.iter().for_each(|x| println!("{x}")))),
         "--mesh-info" => {
             for f in &args[1..] {
                 match mesh_io::load(Path::new(f)) {

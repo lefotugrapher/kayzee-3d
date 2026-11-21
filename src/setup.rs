@@ -82,6 +82,49 @@ fn unpack_archive(archive: &Path, to: &Path) -> Result<usize, String> {
     Ok(count)
 }
 
+/// Set up from a CD image file (.iso) of the disc.
+pub fn set_up_from_image(image: &Path) -> Result<Vec<String>, String> {
+    let entries = crate::iso::list(image)?;
+    let archive = entries.iter().find(|e| !e.dir && e.path.rsplit('/').next().is_some_and(|n| n.eq_ignore_ascii_case("data.1")))
+        .ok_or("This image holds no installer archive (data.1). Use an image of the Bryce 3D (Windows) disc.")?;
+    let data = data_folder();
+    std::fs::create_dir_all(&data).map_err(|e| format!("Cannot make {}: {e}", data.display()))?;
+    let tmp = data.join("disc-archive.tmp");
+    std::fs::write(&tmp, crate::iso::read(image, archive)?).map_err(|e| e.to_string())?;
+    let to = data.join("from-disc");
+    let _ = std::fs::remove_dir_all(&to);
+    let n = unpack_archive(&tmp, &to);
+    let _ = std::fs::remove_file(&tmp);
+    let mut report = vec![format!("Unpacked {} files from the disc image.", n?)];
+    // the disc's preset libraries sit beside the installer: keep them for the preset browser
+    let lib = data.join("Library").join("Disc");
+    for e in entries.iter().filter(|e| !e.dir) {
+        let lower = e.path.to_lowercase();
+        if [".mat", ".brt", ".obj", ".dxf"].iter().any(|x| lower.ends_with(x)) {
+            let dest = lib.join(e.path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if let Some(parent) = dest.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(bytes) = crate::iso::read(image, e) {
+                let _ = std::fs::write(dest, bytes);
+            }
+        }
+    }
+    let out = substrate_path();
+    match stecyk3d::extract::extract_expected(&[(None, to)], &out) {
+        Ok(lines) => {
+            report.extend(lines);
+            Ok(report)
+        }
+        Err(refused) => Err(refused.messages.join("\n")),
+    }
+}
+
+/// Set up from a disc image, an installed copy, or a folder with the disc's files.
+pub fn set_up_from_any(path: &Path) -> Result<Vec<String>, String> {
+    if path.is_file() { set_up_from_image(path) } else { set_up_from(path) }
+}
+
 /// Set up from a folder the user picked: an installed copy, or the disc itself
 /// (mounted, or its files copied out). Returns lines saying what was done.
 pub fn set_up_from(folder: &Path) -> Result<Vec<String>, String> {

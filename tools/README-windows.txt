@@ -8,7 +8,7 @@ Run
 
 First run: set up from your disc
   Rendering needs a few data tables that only an original Bryce 3D disc
-  holds. In the app choose File > Set Up From Disc... and pick the disc
+  holds. In the app choose File > Add Bryce 3D Disc Image... and pick the disc
   (or a folder holding its files, or an installed copy). This is done
   once. The data is kept in  %APPDATA%\Kayzee 3D  and never leaves the PC.
 

@@ -64,7 +64,7 @@ pub fn texture_record(texture: &Value) -> Value {
 
 /// Folders searched for preset files: the installed copy and extra folders the user added.
 fn folders() -> Vec<PathBuf> {
-    let mut out = vec![setup::data_folder().join("from-disc").join("prog").join("Presets"), setup::data_folder().join("Library")];
+    let mut out = vec![setup::data_folder().join("from-disc").join("prog").join("Presets"), setup::data_folder().join("Library").join("Disc"), setup::data_folder().join("Library")];
     if let Ok(text) = std::fs::read_to_string(setup::data_folder().join("library-folders.txt")) {
         out.extend(text.lines().filter(|l| !l.trim().is_empty()).map(PathBuf::from));
     }
@@ -202,6 +202,14 @@ fn load(s: &mut State, path: &Path, ctx: &egui::Context) {
             ctx.request_repaint();
         }
     });
+}
+
+impl State {
+    /// Look for preset files again (after the disc is added).
+    pub fn reset(&mut self) {
+        self.listed_for = None;
+        self.file = None;
+    }
 }
 
 pub fn show(app: &mut App, ctx: &egui::Context) {
