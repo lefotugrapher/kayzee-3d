@@ -1,21 +1,28 @@
-MIT License
+Kayzee 3D
+Copyright (c) 2026 Kayzee (GitHub: lefotugrapher). All rights reserved.
 
-Copyright (c) 2026 lefotugrapher
+This licence applies to version 0.3.1 and every later version. Versions
+0.2.0 and 0.3.0 were published under the MIT licence and stay under it.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. You may download and run the published program for your own use, and
+   read the source code to study it or to check what it does.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+2. Without written permission from the copyright holder you may not:
+   a. copy, republish or redistribute the source code or the program,
+      in whole or in part;
+   b. modify it, or make or distribute works based on it;
+   c. sell, sublicense or offer it as part of a product or service;
+   d. feed it to, or use it to train, tune or evaluate, any machine
+      learning system, or have an automated agent copy, rewrite, port or
+      reuse it.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+3. Forks made through GitHub's own fork button are allowed only as far as
+   GitHub's Terms of Service require, and give no further rights.
+
+4. Third-party components keep their own licences (see README, Credits).
+
+5. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE
+   COPYRIGHT HOLDER IS NOT LIABLE FOR ANY CLAIM OR DAMAGES ARISING FROM IT.
+
+Permission requests: open an issue at
+https://github.com/lefotugrapher/kayzee-3d

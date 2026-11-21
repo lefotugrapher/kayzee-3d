@@ -110,7 +110,9 @@ without a release does not notify anyone.
 
 ## Licence and disclaimer
 
-Kayzee 3D's own code is under the [MIT licence](LICENSE).
+Copyright (c) 2026 Kayzee. **All rights reserved** from version 0.3.1 on: see [LICENSE](LICENSE).
+You may run the program and read the code. You may not copy, modify, redistribute or reuse the code,
+or use it with AI systems, without written permission. (Versions 0.2.0 and 0.3.0 were MIT.)
 
 Kayzee 3D is an independent project. It is not affiliated with, endorsed by or derived from the makers
 or owners of Bryce. "Bryce" is a trademark of its owners and is used here only to say which files and
