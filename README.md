@@ -110,7 +110,7 @@ without a release does not notify anyone.
 
 ## Licence and disclaimer
 
-Copyright (c) 2026 Kayzee. **All rights reserved** from version 0.3.1 on: see [LICENSE](LICENSE).
+Copyright (c) 2026 Kshitiz Mittal. **All rights reserved** from version 0.3.1 on: see [LICENSE](LICENSE).
 You may run the program and read the code. You may not copy, modify, redistribute or reuse the code,
 or use it with AI systems, without written permission. (Versions 0.2.0 and 0.3.0 were MIT.)
 
