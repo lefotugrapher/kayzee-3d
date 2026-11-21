@@ -6,11 +6,12 @@ Run
   Windows may show a "Windows protected your PC" notice because the
   program is not signed: choose "More info", then "Run anyway".
 
-First run: set up from your disc
-  Rendering needs a few data tables that only an original Bryce 3D disc
-  holds. In the app choose File > Add Bryce 3D Disc Image... and pick the disc
-  (or a folder holding its files, or an installed copy). This is done
-  once. The data is kept in  %APPDATA%\Kayzee 3D  and never leaves the PC.
+First run: unlock rendering
+  Everything works without it, but rendering needs your own Bryce 3D disc
+  image. Choose File > Add Bryce 3D Disc Image... and pick your .iso file
+  (File > Add From Disc or Folder... takes a disc or an installed copy).
+  This is done once. The data is kept in  %APPDATA%\Kayzee 3D  and never
+  leaves the PC.
 
 If the window opens blank or without text
   The window is drawn with OpenGL by default. To try the other way, make
