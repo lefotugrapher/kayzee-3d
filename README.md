@@ -92,6 +92,16 @@ cargo zigbuild --release --target x86_64-pc-windows-gnu
 Useful checks that run without a window: `ridgeline --selftest DIR`, `ridgeline --checks DIR`,
 `ridgeline --snap-check`, `ridgeline --update-check`.
 
+## Publishing an update
+
+```sh
+tools/release.sh 0.3.0 "What changed in this version"
+```
+
+This sets the version, builds the Mac app and the Windows program, pushes the code and creates a GitHub
+release with both downloads. The update notice in the app looks at releases, so a plain `git push`
+without a release does not notify anyone.
+
 ## Credits
 
 - Rendering and scene-file reading: [stecyk3d](https://github.com/tatleoat/stecyk3d) (MIT).
