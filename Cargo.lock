@@ -1434,6 +1434,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kayzee3d"
+version = "0.3.0"
+dependencies = [
+ "eframe",
+ "image",
+ "rfd",
+ "serde",
+ "serde_json",
+ "stecyk3d",
+ "unshield",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2315,19 +2328,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "ridgeline"
-version = "0.2.0"
-dependencies = [
- "eframe",
- "image",
- "rfd",
- "serde",
- "serde_json",
- "stecyk3d",
- "unshield",
 ]
 
 [[package]]

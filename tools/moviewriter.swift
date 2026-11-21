@@ -1,5 +1,5 @@
 // Turns a numbered run of picture files into a QuickTime movie.
-// usage: ridgeline-movie OUT.mov FPS FRAME.png [FRAME.png ...]
+// usage: kayzee3d-movie OUT.mov FPS FRAME.png [FRAME.png ...]
 import AVFoundation
 import CoreGraphics
 import Foundation
@@ -11,7 +11,7 @@ func fail(_ text: String) -> Never {
 }
 
 let args = CommandLine.arguments
-guard args.count >= 4, let fps = Int32(args[2]), fps > 0 else { fail("usage: ridgeline-movie OUT.mov FPS FRAME.png [FRAME.png ...]") }
+guard args.count >= 4, let fps = Int32(args[2]), fps > 0 else { fail("usage: kayzee3d-movie OUT.mov FPS FRAME.png [FRAME.png ...]") }
 let out = URL(fileURLWithPath: args[1])
 let frames = Array(args[3...])
 

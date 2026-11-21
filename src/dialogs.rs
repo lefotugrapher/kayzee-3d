@@ -503,12 +503,12 @@ fn start_movie(app: &mut App, out: PathBuf, frames_only: bool) {
     let state = Arc::new(Mutex::new(Movie { done: 0, total: times.len(), result: None, stop: false }));
     app.dlg.movie_job = Some(state.clone());
     job::stop();
-    let helper = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("ridgeline-movie")));
+    let helper = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("kayzee3d-movie")));
     std::thread::Builder::new()
         .name("movie".into())
         .stack_size(64 << 20)
         .spawn(move || {
-            let folder = if frames_only { out.clone() } else { std::env::temp_dir().join(format!("ridgeline-frames-{}", std::process::id())) };
+            let folder = if frames_only { out.clone() } else { std::env::temp_dir().join(format!("kayzee3d-frames-{}", std::process::id())) };
             let run = || -> Result<String, String> {
                 std::fs::create_dir_all(&folder).map_err(|e| format!("Cannot make {}: {e}", folder.display()))?;
                 let k = project.render.scale.max(0.05);
@@ -643,7 +643,7 @@ fn help(app: &mut App, ctx: &egui::Context) {
     }
     if app.dlg.about {
         egui::Window::new("About").open(&mut app.dlg.about).collapsible(false).resizable(false).show(ctx, |ui| {
-            ui.label(RichText::new("Ridgeline").strong().size(18.0));
+            ui.label(RichText::new("Kayzee 3D").strong().size(18.0));
             ui.label("A native Mac landscape modeller and renderer.");
             ui.label(RichText::new("Opens .br3 and .br5 scene files. Rendering uses the open-source stecyk3d renderer, with data tables read from your own disc.").color(kit::DIM).small());
         });

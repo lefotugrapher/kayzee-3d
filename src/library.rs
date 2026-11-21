@@ -181,7 +181,7 @@ fn load(s: &mut State, path: &Path, ctx: &egui::Context) {
                 Ok(p) if p.width == THUMB && p.height == THUMB => p.levels,
                 // a preset the renderer refuses shows as a plain grey square with a mark
                 other => {
-                    if std::env::var_os("RIDGELINE_DEBUG").is_some() {
+                    if std::env::var_os("KAYZEE3D_DEBUG").is_some() {
                         eprintln!("thumbnail {k}: {}", other.err().unwrap_or_else(|| "wrong size".into()));
                     }
                     let mut v = vec![150u8; (THUMB * THUMB * 3) as usize];
@@ -213,7 +213,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
             Kind::Materials => files_with(&["mat"]),
             Kind::Textures => files_with(&["brt"]),
             Kind::Objects => {
-                let mut v: Vec<PathBuf> = std::fs::read_dir(objects_folder()).map(|d| d.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case(fileio::EXT))).collect()).unwrap_or_default();
+                let mut v: Vec<PathBuf> = std::fs::read_dir(objects_folder()).map(|d| d.flatten().map(|e| e.path()).filter(|p| fileio::is_own(p)).collect()).unwrap_or_default();
                 v.sort();
                 v
             }
@@ -446,7 +446,7 @@ fn save_object(app: &mut App) {
 
 /// Replace this scene's sky with the sky of another scene file.
 pub fn sky_from_scene(app: &mut App) {
-    let Some(path) = rfd::FileDialog::new().add_filter("Scenes", &["br3", "br5", fileio::EXT, "BR3", "BR5"]).pick_file() else { return };
+    let Some(path) = rfd::FileDialog::new().add_filter("Scenes", &["br3", "br5", fileio::EXT, fileio::OLD_EXT, "BR3", "BR5"]).pick_file() else { return };
     match fileio::open(&path) {
         Ok(other) => {
             app.doc.checkpoint();

@@ -6,7 +6,7 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 /// Where releases are published.
-pub const REPO: &str = "lefotugrapher/ridgeline";
+pub const REPO: &str = "lefotugrapher/kayzee-3d";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Release {
@@ -26,9 +26,9 @@ pub enum Status {
 
 pub type Shared = Arc<Mutex<Status>>;
 
-/// This build's version (RIDGELINE_FAKE_VERSION overrides it, to try the notice out).
+/// This build's version (KAYZEE3D_FAKE_VERSION overrides it, to try the notice out).
 pub fn current() -> String {
-    std::env::var("RIDGELINE_FAKE_VERSION").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned())
+    std::env::var("KAYZEE3D_FAKE_VERSION").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned())
 }
 
 fn numbers(v: &str) -> Vec<u64> {
@@ -60,7 +60,7 @@ fn quiet(mut c: Command) -> Command {
 pub fn latest() -> Result<Release, String> {
     let url = format!("https://api.github.com/repos/{REPO}/releases/latest");
     let mut c = quiet(Command::new(if cfg!(windows) { "curl.exe" } else { "curl" }));
-    c.args(["-fsSL", "-m", "12", "-H", "Accept: application/vnd.github+json", "-H", "User-Agent: ridgeline-update-check", &url]);
+    c.args(["-fsSL", "-m", "12", "-H", "Accept: application/vnd.github+json", "-H", "User-Agent: kayzee3d-update-check", &url]);
     let out = c.output().map_err(|e| format!("could not ask ({e})"))?;
     if !out.status.success() {
         return Err("no answer from the release page (offline, or no release yet)".to_owned());

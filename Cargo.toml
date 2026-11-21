@@ -1,10 +1,10 @@
 [package]
-name = "ridgeline"
-version = "0.2.0"
+name = "kayzee3d"
+version = "0.3.0"
 edition = "2024"
 description = "A landscape modeller and renderer for Mac and Windows that opens .br3 and .br5 scene files"
 license = "MIT"
-repository = "https://github.com/lefotugrapher/ridgeline"
+repository = "https://github.com/lefotugrapher/kayzee-3d"
 
 [dependencies]
 stecyk3d = { git = "https://github.com/tatleoat/stecyk3d", rev = "24e2bc09137ea00bf5a86eacc20d53bfcdd0abcb" }

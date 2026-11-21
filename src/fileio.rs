@@ -8,10 +8,17 @@ use crate::model::Project;
 use crate::{create, import, mesh_io};
 
 /// The app's own scene file extension.
-pub const EXT: &str = "ridge";
+pub const EXT: &str = "k3d";
+/// The extension earlier versions saved with; still opened.
+pub const OLD_EXT: &str = "ridge";
 
 pub fn is_scene(path: &Path) -> bool {
-    path.extension().is_some_and(|e| ["br3", "br5", EXT].iter().any(|x| e.eq_ignore_ascii_case(x)))
+    path.extension().is_some_and(|e| ["br3", "br5", EXT, OLD_EXT].iter().any(|x| e.eq_ignore_ascii_case(x)))
+}
+
+/// A scene this app saved (now or under its earlier extension).
+pub fn is_own(path: &Path) -> bool {
+    path.extension().is_some_and(|e| e.eq_ignore_ascii_case(EXT) || e.eq_ignore_ascii_case(OLD_EXT))
 }
 
 pub fn is_model(path: &Path) -> bool {
@@ -19,7 +26,7 @@ pub fn is_model(path: &Path) -> bool {
 }
 
 pub fn open(path: &Path) -> Result<Project, String> {
-    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case(EXT)) {
+    if is_own(path) {
         let text = std::fs::read_to_string(path).map_err(|e| format!("Cannot read it: {e}"))?;
         let mut p: Project = serde_json::from_str(&text).map_err(|e| format!("It is not a scene this app saved: {e}"))?;
         p.view_dots.resize(crate::model::DOTS, None);
@@ -46,7 +53,7 @@ fn remember(path: &Path) {
 }
 
 pub fn open_dialog(app: &mut App) {
-    let mut d = rfd::FileDialog::new().add_filter("Scenes", &["br3", "br5", EXT, "BR3", "BR5"]);
+    let mut d = rfd::FileDialog::new().add_filter("Scenes", &["br3", "br5", EXT, OLD_EXT, "BR3", "BR5"]);
     if let Some(f) = start_folder(app) {
         d = d.set_directory(f);
     }
@@ -70,7 +77,7 @@ pub fn open_any(app: &mut App, path: &Path) {
 
 /// Add another scene's objects (with their materials and textures) to this one.
 pub fn merge_dialog(app: &mut App) {
-    let mut d = rfd::FileDialog::new().add_filter("Scenes", &["br3", "br5", EXT, "BR3", "BR5"]);
+    let mut d = rfd::FileDialog::new().add_filter("Scenes", &["br3", "br5", EXT, OLD_EXT, "BR3", "BR5"]);
     if let Some(f) = start_folder(app) {
         d = d.set_directory(f);
     }

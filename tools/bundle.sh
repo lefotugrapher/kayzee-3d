@@ -1,17 +1,17 @@
 #!/bin/sh
-# Builds Ridgeline.app next to the app folder: release binary, icon, Info.plist, ad-hoc signature.
+# Builds Kayzee 3D.app next to the app folder: release binary, icon, Info.plist, ad-hoc signature.
 set -e
 cd "$(dirname "$0")/.."
 cargo build --release
-APP=../Ridgeline.app
+APP="../Kayzee 3D.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp target/release/ridgeline "$APP/Contents/MacOS/ridgeline"
+cp target/release/kayzee3d "$APP/Contents/MacOS/kayzee3d"
 # the helper that joins rendered frames into a movie
-if [ ! -f target/ridgeline-movie ] || [ tools/moviewriter.swift -nt target/ridgeline-movie ]; then
-  swiftc -O tools/moviewriter.swift -o target/ridgeline-movie 2>/dev/null
+if [ ! -f target/kayzee3d-movie ] || [ tools/moviewriter.swift -nt target/kayzee3d-movie ]; then
+  swiftc -O tools/moviewriter.swift -o target/kayzee3d-movie 2>/dev/null
 fi
-cp target/ridgeline-movie "$APP/Contents/MacOS/ridgeline-movie"
+cp target/kayzee3d-movie "$APP/Contents/MacOS/kayzee3d-movie"
 if [ ! -f tools/AppIcon.icns ]; then
   T=$(mktemp -d)
   python3 tools/make_icon.py "$T/icon.png"
@@ -30,10 +30,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Ridgeline</string>
-  <key>CFBundleDisplayName</key><string>Ridgeline</string>
-  <key>CFBundleIdentifier</key><string>local.ridgeline.app</string>
-  <key>CFBundleExecutable</key><string>ridgeline</string>
+  <key>CFBundleName</key><string>Kayzee 3D</string>
+  <key>CFBundleDisplayName</key><string>Kayzee 3D</string>
+  <key>CFBundleIdentifier</key><string>local.kayzee3d.app</string>
+  <key>CFBundleExecutable</key><string>kayzee3d</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
@@ -44,6 +44,6 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
-codesign --force -s - "$APP/Contents/MacOS/ridgeline-movie" >/dev/null 2>&1
+codesign --force -s - "$APP/Contents/MacOS/kayzee3d-movie" >/dev/null 2>&1
 codesign --force -s - "$APP" >/dev/null 2>&1
 echo "built $APP"

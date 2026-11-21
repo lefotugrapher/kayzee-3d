@@ -7,13 +7,23 @@ use std::path::{Path, PathBuf};
 
 pub fn data_folder() -> PathBuf {
     let var = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
-    if cfg!(windows) {
-        var("APPDATA").or_else(|| var("USERPROFILE")).unwrap_or_default().join("Ridgeline")
+    let base = if cfg!(windows) {
+        var("APPDATA").or_else(|| var("USERPROFILE")).unwrap_or_default()
     } else if cfg!(target_os = "macos") {
-        var("HOME").unwrap_or_default().join("Library").join("Application Support").join("Ridgeline")
+        var("HOME").unwrap_or_default().join("Library").join("Application Support")
     } else {
-        var("XDG_DATA_HOME").unwrap_or_else(|| var("HOME").unwrap_or_default().join(".local").join("share")).join("Ridgeline")
-    }
+        var("XDG_DATA_HOME").unwrap_or_else(|| var("HOME").unwrap_or_default().join(".local").join("share"))
+    };
+    let folder = base.join("Kayzee 3D");
+    // the app had another name before: its folder is carried over the first time
+    static CARRY: std::sync::Once = std::sync::Once::new();
+    CARRY.call_once(|| {
+        let earlier = base.join(["Ridge", "line"].concat());
+        if earlier.is_dir() && !folder.exists() {
+            let _ = std::fs::rename(&earlier, &folder);
+        }
+    });
+    folder
 }
 
 pub fn substrate_path() -> PathBuf {

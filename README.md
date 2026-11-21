@@ -1,4 +1,4 @@
-# Ridgeline
+# Kayzee 3D
 
 A landscape modeller and renderer for **macOS (Apple Silicon)** and **Windows**, written in Rust.
 Build scenes from terrains, water, primitives, lights and imported models, set the sky, and render.
@@ -17,10 +17,10 @@ on a current machine.
 
 ## Download
 
-Get the latest build from the [Releases page](https://github.com/lefotugrapher/ridgeline/releases/latest).
+Get the latest build from the [Releases page](https://github.com/lefotugrapher/kayzee-3d/releases/latest).
 
-- **Mac:** unzip, then right-click `Ridgeline.app` and choose **Open** the first time (the app is not notarised).
-- **Windows 10/11 (64-bit):** unzip and run `Ridgeline.exe`. If Windows shows "Windows protected your PC",
+- **Mac:** unzip, then right-click `Kayzee 3D.app` and choose **Open** the first time (the app is not notarised).
+- **Windows 10/11 (64-bit):** unzip and run `Kayzee3D.exe`. If Windows shows "Windows protected your PC",
   choose **More info**, then **Run anyway** (the program is not signed).
 
 The Windows build has been checked with automated tests but has had little use on real hardware yet.
@@ -31,7 +31,7 @@ Please open an issue if something does not work.
 Rendering needs a few data tables that only an original Bryce 3D disc holds. **None of that data is in
 this repository or in the downloads.** In the app choose **File > Set Up From Disc…** and pick your disc,
 a folder holding its files, or an installed copy. This is done once; the data stays on your machine
-(`~/Library/Application Support/Ridgeline` on a Mac, `%APPDATA%\Ridgeline` on Windows).
+(`~/Library/Application Support/Kayzee 3D` on a Mac, `%APPDATA%\Kayzee 3D` on Windows).
 
 You can build scenes without doing this, but not render them.
 
@@ -57,7 +57,7 @@ You can build scenes without doing this, but not render them.
 
 ## Known limits
 
-- Scenes are saved in Ridgeline's own format; it cannot write `.br3` files.
+- Scenes are saved in Kayzee 3D's own format; it cannot write `.br3` files.
 - Some old scenes are refused by the renderer, which stops rather than guess when it meets something it
   cannot draw exactly. The app shows the reason.
 - Some old surfaces ask a texture for colour or bump it was never set to make. By default the app
@@ -78,8 +78,8 @@ start**, or look by hand with **Help > Check for Updates…**.
 You need a current Rust toolchain.
 
 ```sh
-cargo build --release          # the program: target/release/ridgeline
-./tools/bundle.sh              # Mac: makes ../Ridgeline.app (needs the Xcode command line tools)
+cargo build --release          # the program: target/release/kayzee3d
+./tools/bundle.sh              # Mac: makes ../Kayzee 3D.app (needs the Xcode command line tools)
 ```
 
 A Windows `.exe` can be cross-compiled from a Mac with [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild):
@@ -89,8 +89,8 @@ rustup target add x86_64-pc-windows-gnu
 cargo zigbuild --release --target x86_64-pc-windows-gnu
 ```
 
-Useful checks that run without a window: `ridgeline --selftest DIR`, `ridgeline --checks DIR`,
-`ridgeline --snap-check`, `ridgeline --update-check`.
+Useful checks that run without a window: `kayzee3d --selftest DIR`, `kayzee3d --checks DIR`,
+`kayzee3d --snap-check`, `kayzee3d --update-check`.
 
 ## Publishing an update
 
@@ -110,9 +110,9 @@ without a release does not notify anyone.
 
 ## Licence and disclaimer
 
-Ridgeline's own code is under the [MIT licence](LICENSE).
+Kayzee 3D's own code is under the [MIT licence](LICENSE).
 
-Ridgeline is an independent project. It is not affiliated with, endorsed by or derived from the makers
+Kayzee 3D is an independent project. It is not affiliated with, endorsed by or derived from the makers
 or owners of Bryce. "Bryce" is a trademark of its owners and is used here only to say which files and
 discs the app can read. The app contains no code, artwork or data from the original program; every
 control and icon is drawn by this project's own code.

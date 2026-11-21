@@ -233,8 +233,8 @@ impl App {
         if auto_render {
             app.dlg.auto_render = true;
         }
-        // RIDGELINE_START=edit,select,terrain … opens the app in a given state (used to check each screen)
-        for word in std::env::var("RIDGELINE_START").unwrap_or_default().split(',') {
+        // KAYZEE3D_START=edit,select,terrain … opens the app in a given state (used to check each screen)
+        for word in std::env::var("KAYZEE3D_START").unwrap_or_default().split(',') {
             match word {
                 "edit" => app.palette = Palette::Edit,
                 "sky" => app.palette = Palette::Sky,
@@ -291,6 +291,7 @@ impl App {
         match fileio::open(path) {
             Ok(project) => {
                 let own = path.extension().is_some_and(|e| e.eq_ignore_ascii_case(fileio::EXT));
+                let _ = fileio::OLD_EXT; // an older scene opens, and is saved under the new extension
                 self.replace_project(project, own.then(|| path.to_path_buf()));
                 {
                     self.doc.project.name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
@@ -1387,12 +1388,12 @@ impl eframe::App for App {
             crate::update::Status::Newer(r) => {
                 if self.prefs.told_version != r.version {
                     self.prefs.told_version = r.version.clone();
-                    crate::update::notify("Ridgeline update", &format!("Version {} is out. Open Ridgeline to get it.", r.version));
+                    crate::update::notify("Kayzee 3D update", &format!("Version {} is out. Open Kayzee 3D to get it.", r.version));
                 }
                 if !self.update_hidden {
                     egui::TopBottomPanel::bottom("update").show_separator_line(false).frame(egui::Frame::new().fill(kit::ACCENT_DEEP).inner_margin(egui::Margin::symmetric(12, 6))).show(ctx, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(format!("A newer Ridgeline is out: {} (you have {}).", r.version, crate::update::current())).strong());
+                            ui.label(RichText::new(format!("A newer Kayzee 3D is out: {} (you have {}).", r.version, crate::update::current())).strong());
                             if ui.button("Get it").on_hover_text("Opens the download page in your browser").clicked() {
                                 crate::update::open_page(&r.url);
                             }

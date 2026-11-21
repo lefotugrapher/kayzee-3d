@@ -15,14 +15,14 @@ perl -0pi -e 's/^version = "[^"]*"/version = "'"$V"'"/m' Cargo.toml
 ./tools/bundle.sh
 cargo zigbuild --release --target x86_64-pc-windows-gnu
 OUT=$(mktemp -d)
-ditto -c -k --keepParent ../Ridgeline.app "$OUT/Ridgeline-mac.zip"
-mkdir "$OUT/Ridgeline-Windows"
-cp target/x86_64-pc-windows-gnu/release/ridgeline.exe "$OUT/Ridgeline-Windows/Ridgeline.exe"
-cp tools/README-windows.txt "$OUT/Ridgeline-Windows/README.txt"
-(cd "$OUT" && zip -q -r Ridgeline-Windows.zip Ridgeline-Windows)
+ditto -c -k --keepParent "../Kayzee 3D.app" "$OUT/Kayzee3D-mac.zip"
+mkdir "$OUT/Kayzee3D-Windows"
+cp target/x86_64-pc-windows-gnu/release/kayzee3d.exe "$OUT/Kayzee3D-Windows/Kayzee3D.exe"
+cp tools/README-windows.txt "$OUT/Kayzee3D-Windows/README.txt"
+(cd "$OUT" && zip -q -r Kayzee3D-Windows.zip Kayzee3D-Windows)
 git add -A
-git commit -q -m "Ridgeline $V" || true
+git commit -q -m "Kayzee 3D $V" || true
 git tag "v$V"
 git push -q origin main --tags
-gh release create "v$V" "$OUT/Ridgeline-mac.zip" "$OUT/Ridgeline-Windows.zip" --title "Ridgeline $V" --notes "$NOTES"
+gh release create "v$V" "$OUT/Kayzee3D-mac.zip" "$OUT/Kayzee3D-Windows.zip" --title "Kayzee 3D $V" --notes "$NOTES"
 echo "Released $V"

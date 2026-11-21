@@ -1,5 +1,5 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
-//! Ridgeline: a native Mac landscape modeller and renderer. It builds scenes
+//! Kayzee 3D: a native Mac landscape modeller and renderer. It builds scenes
 //! from primitives, terrains, lights and imported models, opens .br3/.br5
 //! scene files, and renders with the stecyk3d renderer. The fixed data the
 //! renderer needs is read from the user's own disc; none ships with the app.
@@ -19,6 +19,7 @@ mod math;
 mod matlab;
 mod mesh_io;
 mod model;
+mod scenes;
 mod movie;
 mod setup;
 mod sky_ui;
@@ -76,6 +77,8 @@ fn tool(args: &[String]) -> Option<Result<(), String>> {
             std::fs::write(&args[2], emit::description(&p, (p.size[0], p.size[1]), p.render.antialias)).map_err(|e| e.to_string())
         })()),
         "--checks" if args.len() == 2 => Some(checks(Path::new(&args[1]))),
+        // --scene dream OUT.ridge [SKY_SCENE] : write an example scene (cloud layers borrowed from SKY_SCENE)
+        "--scene" if args.len() >= 3 && args[1] == "dream" => Some(fileio::write(&scenes::dream(args.get(3).map(Path::new)), Path::new(&args[2]))),
         // --demo OUT.ridge : write the small scene used for the project's pictures
         "--demo" if args.len() == 2 => Some(fileio::write(&demo(), Path::new(&args[1]))),
         // --update-check : say what the release page answers
@@ -86,7 +89,7 @@ fn tool(args: &[String]) -> Option<Result<(), String>> {
                 Err(e) => println!("no answer: {e}"),
             }
             if args.iter().any(|a| a == "--notify") {
-                update::notify("Ridgeline", "This is what an update notice looks like.");
+                update::notify("Kayzee 3D", "This is what an update notice looks like.");
             }
             Some(Ok(()))
         }
@@ -297,7 +300,7 @@ fn checks(out: &Path) -> Result<(), String> {
             std::fs::write(&f, pic.png()).map_err(|e| e.to_string())?;
             files.push(f);
         }
-        let helper = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("ridgeline-movie"))).filter(|h| h.exists());
+        let helper = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("kayzee3d-movie"))).filter(|h| h.exists());
         match helper {
             Some(h) => {
                 let mov = out.join("check.mov");
@@ -315,8 +318,8 @@ fn checks(out: &Path) -> Result<(), String> {
     {
         let mut doc = state::Doc::new(create::new_project());
         let home = std::env::var("HOME").unwrap_or_default();
-        // RIDGELINE_TEST_MODELS names a folder of model files to try (none are part of this project)
-        let folder = std::env::var("RIDGELINE_TEST_MODELS").unwrap_or_default();
+        // KAYZEE3D_TEST_MODELS names a folder of model files to try (none are part of this project)
+        let folder = std::env::var("KAYZEE3D_TEST_MODELS").unwrap_or_default();
         let _ = &home;
         let found: Vec<PathBuf> = std::fs::read_dir(&folder).map(|d| d.flatten().map(|e| e.path()).filter(|p| fileio::is_model(p)).take(2).collect()).unwrap_or_default();
         for (k, path) in found.iter().enumerate() {
@@ -357,8 +360,8 @@ fn main() -> eframe::Result {
     let auto_render = args.iter().any(|a| a == "--render");
     let first = args.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).find(|p| p.is_file());
     // How the window is drawn: Metal (through wgpu) on a Mac, plain OpenGL elsewhere.
-    // --gl / --wgpu (or RIDGELINE_RENDERER=gl / wgpu) choose the other way where the usual one fails.
-    let asked = std::env::var("RIDGELINE_RENDERER").unwrap_or_default().to_lowercase();
+    // --gl / --wgpu (or KAYZEE3D_RENDERER=gl / wgpu) choose the other way where the usual one fails.
+    let asked = std::env::var("KAYZEE3D_RENDERER").unwrap_or_default().to_lowercase();
     let plain_gl = if args.iter().any(|a| a == "--wgpu") || asked == "wgpu" {
         false
     } else if args.iter().any(|a| a == "--gl") || asked == "gl" {
@@ -368,8 +371,8 @@ fn main() -> eframe::Result {
     };
     let options = eframe::NativeOptions {
         renderer: if plain_gl { eframe::Renderer::Glow } else { eframe::Renderer::Wgpu },
-        viewport: egui::ViewportBuilder::default().with_title("Ridgeline").with_inner_size([1320.0, 860.0]).with_min_inner_size([980.0, 640.0]).with_drag_and_drop(true),
+        viewport: egui::ViewportBuilder::default().with_title("Kayzee 3D").with_inner_size([1320.0, 860.0]).with_min_inner_size([980.0, 640.0]).with_drag_and_drop(true),
         ..Default::default()
     };
-    eframe::run_native("Ridgeline", options, Box::new(move |cc| Ok(Box::new(app::App::new(cc, first, auto_render)))))
+    eframe::run_native("Kayzee 3D", options, Box::new(move |cc| Ok(Box::new(app::App::new(cc, first, auto_render)))))
 }
