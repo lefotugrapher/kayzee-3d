@@ -1,5 +1,7 @@
 # Kayzee 3D
 
+https://www.reddit.com/r/Bryce3D/comments/1y1xzts/comment/19sz9j242rew4/?screen_view_count=2
+
 A landscape modeller and renderer for **macOS (Apple Silicon)** and **Windows**, written in Rust.
 Build scenes from terrains, water, primitives, lights and imported models, set the sky, and render.
 It also opens old `.br3` and `.br5` scene files, so scenes made years ago can be worked on again
