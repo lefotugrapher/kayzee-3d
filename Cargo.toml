@@ -9,8 +9,7 @@ repository = "https://github.com/lefotugrapher/kayzee-3d"
 [dependencies]
 stecyk3d = { git = "https://github.com/tatleoat/stecyk3d", rev = "24e2bc09137ea00bf5a86eacc20d53bfcdd0abcb" }
 unshield = "0.2.0"
-eframe = { version = "=0.31.1", default-features = false, features = ["wgpu", "glow", "default_fonts"] }
-rfd = "0.15"
+eframe = { version = "=0.31.1", default-features = false, features = ["wgpu", "glow", "default_fonts", "x11", "wayland"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "tiff", "tga"] }
@@ -19,3 +18,10 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 opt-level = 3
 debug = false
 strip = true
+
+# file dialogs: the system's own; on Linux through the desktop portal (no GTK to link)
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+rfd = "0.15"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "async-std"] }

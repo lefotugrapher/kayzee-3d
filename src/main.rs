@@ -5,6 +5,10 @@
 //! renderer needs is read from the user's own disc; none ships with the app.
 
 mod anim;
+mod classic;
+mod classic_app;
+mod classic_ui;
+mod obp;
 mod anim_ui;
 mod app;
 mod create;
@@ -149,6 +153,9 @@ fn tool(args: &[String]) -> Option<Result<(), String>> {
             }
             Some(Ok(()))
         }
+        // hooks for the classic-UI and .obp work: `--classic DIR` and `--obp OUT_DIR`
+        "--classic" if args.len() == 2 => Some(classic::cli(Path::new(&args[1]))),
+        "--obp" if args.len() == 2 => Some(obp::cli(Path::new(&args[1]))),
         "--snap-check" => {
             viewport::snap_check().iter().for_each(|l| println!("{l}"));
             Some(Ok(()))

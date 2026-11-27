@@ -2,14 +2,21 @@
 # Builds Kayzee 3D.app next to the app folder: release binary, icon, Info.plist, ad-hoc signature.
 set -e
 cd "$(dirname "$0")/.."
-cargo build --release
+# one program for both kinds of Mac: Apple Silicon and Intel
+cargo build --release --target aarch64-apple-darwin
+cargo build --release --target x86_64-apple-darwin
+mkdir -p target/universal
+lipo -create target/aarch64-apple-darwin/release/kayzee3d target/x86_64-apple-darwin/release/kayzee3d -output target/universal/kayzee3d
+cp target/universal/kayzee3d target/release/kayzee3d 2>/dev/null || true
 APP="../Kayzee 3D.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp target/release/kayzee3d "$APP/Contents/MacOS/kayzee3d"
+cp target/universal/kayzee3d "$APP/Contents/MacOS/kayzee3d"
 # the helper that joins rendered frames into a movie
-if [ ! -f target/kayzee3d-movie ] || [ tools/moviewriter.swift -nt target/kayzee3d-movie ]; then
-  swiftc -O tools/moviewriter.swift -o target/kayzee3d-movie 2>/dev/null
+if [ ! -f target/kayzee3d-movie ] || [ tools/moviewriter.swift -nt target/kayzee3d-movie ] || ! lipo -archs target/kayzee3d-movie | grep -q x86_64; then
+  swiftc -O -target arm64-apple-macos12 tools/moviewriter.swift -o target/kayzee3d-movie-arm64 2>/dev/null
+  swiftc -O -target x86_64-apple-macos12 tools/moviewriter.swift -o target/kayzee3d-movie-x86_64 2>/dev/null
+  lipo -create target/kayzee3d-movie-arm64 target/kayzee3d-movie-x86_64 -output target/kayzee3d-movie
 fi
 cp target/kayzee3d-movie "$APP/Contents/MacOS/kayzee3d-movie"
 if [ ! -f tools/AppIcon.icns ]; then

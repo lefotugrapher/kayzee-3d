@@ -2,10 +2,19 @@
 
 https://www.reddit.com/r/Bryce3D/comments/1y1xzts/comment/19sz9j242rew4/?screen_view_count=2
 
-A landscape modeller and renderer for **macOS (Apple Silicon)** and **Windows**, written in Rust.
+A landscape modeller and renderer for **macOS** (Apple Silicon and Intel), **Windows** and **Linux**, written in Rust.
 Build scenes from terrains, water, primitives, lights and imported models, set the sky, and render.
 It also opens old `.br3` and `.br5` scene files, so scenes made years ago can be worked on again
 on a current machine.
+
+**Who it's for:** people who want to keep making Bryce-style scenes, or open old ones, on a Mac or a
+Linux machine. If you're on Windows, the original Bryce 3D still runs there; Kayzee 3D is an alternative,
+not a replacement.
+
+**How it was made, plainly:** Kayzee 3D was built by Kshitiz Mittal working with Claude (Anthropic's AI),
+which wrote most of the code with Kshitiz directing. The hard part, reading old scene files and drawing them
+the way the original did, is the work of the [stecyk3d](https://github.com/tatleoat/stecyk3d) renderer,
+which this app is built on. Kayzee 3D adds the editor, the tools, the interface and the platform builds.
 
 Kayzee 3D is heavily inspired by Bryce 3D, the 1990s landscape program: its way of working, its
 workspace arrangement and its feel. It is a tribute written from scratch, not a copy of that program
@@ -28,12 +37,16 @@ Credit to its creator for the spark.
 
 Get the latest build from the [Releases page](https://github.com/lefotugrapher/kayzee-3d/releases/latest).
 
-- **Mac:** unzip, then right-click `Kayzee 3D.app` and choose **Open** the first time (the app is not notarised).
+- **Mac** (Apple Silicon and Intel, macOS 12+): unzip, then right-click `Kayzee 3D.app` and choose **Open**
+  the first time (the app is not notarised).
 - **Windows 10/11 (64-bit):** unzip and run `Kayzee3D.exe`. If Windows shows "Windows protected your PC",
   choose **More info**, then **Run anyway** (the program is not signed).
+- **Linux (64-bit x86):** `tar xzf Kayzee3D-Linux.tar.gz` and run `./kayzee3d`. Needs X11 or Wayland
+  with OpenGL.
 
-The Windows build has been checked with automated tests but has had little use on real hardware yet.
-Please open an issue if something does not work.
+The Windows and Linux builds pass automated tests, but have had little use on real machines yet.
+Tried it? Please file a [test report](https://github.com/lefotugrapher/kayzee-3d/issues/new?template=test-report.yml):
+OS, graphics card, what broke, a screenshot.
 
 ## First run: unlock rendering with your Bryce 3D disc image
 
@@ -63,7 +76,10 @@ image and kept on your computer (`~/Library/Application Support/Kayzee 3D` on a 
   pictures as heights, clipping, grid sizes from 16 to 1024.
 - **Animation:** keyframes on objects, the camera, the sky and materials; a timeline, playback, a motion
   lab; movies as `.mov` (Mac) or `.avi`, or numbered frames.
-- **Libraries:** the disc's material, texture, sky and terrain presets, with their own pictures.
+- **Libraries:** the disc's material, texture, sky and object presets (`.obp`: shapes, meshes, groups,
+  booleans, lights, terrains), with their own pictures. Add your own folders of `.obp` files too.
+- **Classic look (optional):** Render > Classic Look draws the palettes with the original program's own
+  artwork, read from your disc image at run time. None of that artwork is in this repository or the downloads.
 - **Picture effects:** film grain, colour wash, saturation, contrast and dark corners.
 - **Rendering:** three anti-aliasing levels, 360° panorama, object, distance and altitude masks, and a
   "stay rendered" mode that keeps the picture up while you edit and redraws it after each change.
@@ -78,7 +94,9 @@ image and kept on your computer (`~/Library/Application Support/Kayzee 3D` on a 
 - Some old surfaces ask a texture for colour or bump it was never set to make. By default the app
   completes those textures so the scene renders; the result is close, not exact. This can be switched
   off in Render Options.
-- From the disc's object preset (`.obp`) files only terrains are read, not other objects.
+- Some tree presets in Rocks&Trees are refused by the renderer (too many overlapping leaves).
+- The Classic look covers the Create and Edit palettes and the side columns; Sky & Fog and the labs keep
+  Kayzee 3D's own controls.
 - Trees are Kayzee 3D's own; metaballs (from later versions) are not supported.
 
 ## Updates

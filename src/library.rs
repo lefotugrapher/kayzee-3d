@@ -43,6 +43,27 @@ pub struct State {
     disc: Vec<crate::disc_presets::Preset>,
     disc_thumbs: Vec<Option<TextureHandle>>,
     disc_error: Option<String>,
+    obp_file: Option<PathBuf>,
+    obp: Vec<crate::obp::ObjPreset>,
+}
+
+fn load_obp(s: &mut State, path: &Path, ctx: &egui::Context) {
+    s.obp_file = Some(path.to_path_buf());
+    s.disc_file = None;
+    match crate::obp::read(path) {
+        Ok(v) => {
+            s.disc_thumbs = v.iter().enumerate().map(|(k, p)| p.thumb.as_ref().map(|(w, h, rgb)| ctx.load_texture(format!("obp{k}"), ColorImage::from_rgb([*w as usize, *h as usize], rgb), TextureOptions::LINEAR))).collect();
+            s.disc = v.iter().map(|p| crate::disc_presets::Preset { name: p.name.clone(), thumb: None, value: serde_json::Value::Null }).collect();
+            s.obp = v;
+            s.disc_error = None;
+        }
+        Err(e) => {
+            s.disc.clear();
+            s.disc_thumbs.clear();
+            s.obp.clear();
+            s.disc_error = Some(e);
+        }
+    }
 }
 
 fn load_disc(s: &mut State, path: &Path, terrains: bool, ctx: &egui::Context) {
@@ -256,6 +277,8 @@ impl State {
     pub fn reset(&mut self) {
         self.listed_for = None;
         self.file = None;
+        self.obp_file = None;
+        self.disc_file = None;
     }
 }
 
@@ -293,6 +316,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
         Kind::Skies => {
             let files = files_with(&["bsk"]);
             if app.lib.disc_file.as_ref().is_none_or(|f| !f.extension().is_some_and(|e| e.eq_ignore_ascii_case("bsk"))) {
+                app.lib.obp_file = None;
                 if let Some(f) = files.first() {
                     load_disc(&mut app.lib, f, false, ctx);
                 }
@@ -353,51 +377,47 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 }
             });
             ui.separator();
-            let obps: Vec<PathBuf> = files_with(&["obp"]).into_iter().filter(|f| crate::disc_presets::terrains(f).is_ok_and(|v| !v.is_empty())).collect();
+            let obps: Vec<PathBuf> = files_with(&["obp"]);
             if !obps.is_empty() {
-                ui.label(RichText::new("Terrains from your disc").strong());
-                if app.lib.disc_file.as_ref().is_none_or(|f| !f.extension().is_some_and(|e| e.eq_ignore_ascii_case("obp"))) {
-                    load_disc(&mut app.lib, &obps[0], true, ctx);
-                }
-                ui.horizontal_wrapped(|ui| {
-                    for f in &obps {
-                        let name = f.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-                        if ui.selectable_label(app.lib.disc_file.as_ref() == Some(f), name).clicked() {
-                            load_disc(&mut app.lib, f, true, ctx);
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Object presets").strong());
+                    if ui.small_button("Add a folder of .obp files…").clicked() {
+                        if let Some(folder) = rfd::FileDialog::new().pick_folder() {
+                            add_folder(&folder);
+                            relist = true;
                         }
                     }
                 });
-                if let Some(k) = disc_grid(ui, &app.lib, Vec2::new(72.0, 72.0)) {
-                    let p = &app.lib.disc[k];
-                    let n = p.value["n"].as_u64().unwrap_or(0) as usize;
-                    let heights: Vec<u16> = p.value["heights"].as_array().map(|a| a.iter().filter_map(|v| v.as_u64().map(|x| x as u16)).collect()).unwrap_or_default();
-                    if n >= 2 && heights.len() == n * n {
-                        let name = p.name.clone();
-                        let smooth = p.value["smooth"].as_bool().unwrap_or(true);
-                        let mirrored = p.value["mirrored"].as_bool().unwrap_or(false);
-                        let mut seed = app.rng;
-                        let id = crate::create::add(&mut app.doc, if mirrored { crate::create::Make::Lattice } else { crate::create::Make::Terrain }, &mut seed);
-                        if let Some(node) = app.doc.project.node_mut(id) {
-                            if let crate::model::Shape::Terrain(t) = &mut node.shape {
-                                let k = t.n as f64 / n as f64;
-                                for c in 0..3 {
-                                    node.m[c] *= k;
-                                    node.m[6 + c] *= k;
-                                }
-                                t.n = n;
-                                t.heights = std::sync::Arc::new(heights);
-                                t.smooth = smooth;
+                if app.lib.obp_file.is_none() {
+                    load_obp(&mut app.lib, &obps[0], ctx);
+                }
+                egui::ScrollArea::horizontal().id_salt("obp-files").show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        for f in &obps {
+                            let name = f.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                            if ui.selectable_label(app.lib.obp_file.as_ref() == Some(f), name).clicked() {
+                                load_obp(&mut app.lib, f, ctx);
                             }
-                            node.name = name;
                         }
+                    });
+                });
+                if let Some(e) = &app.lib.disc_error {
+                    ui.label(RichText::new(format!("This file could not be read: {e}")).color(kit::ACCENT));
+                }
+                if let Some(k) = disc_grid(ui, &app.lib, Vec2::new(72.0, 72.0)) {
+                    if let Some(p) = app.lib.obp.get(k) {
+                        app.doc.checkpoint();
+                        let ids = crate::fileio::merge(&mut app.doc.project, p.project());
+                        app.doc.selection = ids;
                         app.doc.touch();
+                        app.say(format!("Added “{}”.", p.name));
                     }
                 }
                 ui.separator();
             }
             if app.lib.files.is_empty() {
                 ui.label("Your object library is empty.");
-                ui.label(RichText::new("Select objects and add them here to reuse them in other scenes. The disc's .obp object files are in a format the renderer's reader does not open; its OBJ and DXF models import through “Import a 3D model”.").small().color(kit::DIM));
+                ui.label(RichText::new("Select objects and add them here to reuse them in other scenes.").small().color(kit::DIM));
             }
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for f in &app.lib.files {

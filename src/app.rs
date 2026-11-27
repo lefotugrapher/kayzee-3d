@@ -36,6 +36,9 @@ pub struct Prefs {
     /// Keep the rendered picture up while editing, redrawing it after each change.
     #[serde(default)]
     pub stay_rendered: bool,
+    /// Draw the palettes with the original program's artwork from the user's disc.
+    #[serde(default)]
+    pub classic_look: bool,
     #[serde(default)]
     pub snap: crate::viewport::Snap,
     /// Look for a newer version when the app starts.
@@ -55,7 +58,7 @@ fn on() -> bool {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { stay_rendered: false, snap: Default::default(), check_updates: true, last_update_check: 0, told_version: String::new() }
+        Prefs { stay_rendered: false, classic_look: false, snap: Default::default(), check_updates: true, last_update_check: 0, told_version: String::new() }
     }
 }
 
@@ -178,6 +181,9 @@ pub struct App {
     /// The scene revision the picture on show was rendered from.
     rendered_rev: u64,
     test_nudge: Option<Instant>,
+    /// The original artwork, once loaded (None until asked for, or when there is none).
+    skin: Option<crate::classic_ui::Skin>,
+    skin_tried: bool,
     /// The user chose to work without rendering for now.
     locked_ok: bool,
     pub update: crate::update::Shared,
@@ -219,6 +225,8 @@ impl App {
             prefs_saved: Prefs::load(),
             rendered_rev: 0,
             test_nudge: None,
+            skin: None,
+            skin_tried: false,
             locked_ok: false,
             update: std::sync::Arc::new(std::sync::Mutex::new(crate::update::Status::Idle)),
             update_asked: false,
@@ -252,10 +260,13 @@ impl App {
                 "motion" => app.lab = Lab::Motion,
                 "attributes" => app.dlg.attributes = true,
                 "stay" => app.prefs.stay_rendered = true,
+                "classic" => app.prefs.classic_look = true,
+                "modern" => app.prefs.classic_look = false,
                 "nostay" => app.prefs.stay_rendered = false,
                 // move the selection a few seconds after starting (checks that the picture follows)
                 "nudge" => app.test_nudge = Some(Instant::now() + std::time::Duration::from_secs(5)),
                 "matlib" => app.lib.open = Some(library::Kind::Materials),
+                "objlib" => app.lib.open = Some(library::Kind::Objects),
                 "top" => {
                     app.view.view = ViewKind::Flat(Side::Top);
                     app.view.frame_all(&app.doc);
@@ -872,6 +883,49 @@ impl App {
         }
     }
 
+    /// The original artwork when the Classic look is on and the art is there (taken out while drawing).
+    fn classic_skin(&mut self) -> Option<crate::classic_ui::Skin> {
+        if !self.prefs.classic_look {
+            return None;
+        }
+        if self.skin.is_none() && !self.skin_tried {
+            self.skin_tried = true;
+            self.skin = crate::classic_ui::Skin::load();
+            if let Some(s) = &self.skin {
+                if let Some(c) = s.average("docwindow", "grain large") {
+                    self.view.paper = c;
+                }
+            }
+        }
+        if self.skin.is_none() {
+            self.skin_tried = false;
+        }
+        self.skin.take()
+    }
+
+    pub fn zoom_by(&mut self, factor: f64) {
+        self.zoom(factor);
+    }
+
+    /// Fit everything in view (the display column's button).
+    pub fn fit_view(&mut self) {
+        match self.view.view {
+            ViewKind::Flat(_) => self.view.frame_all(&self.doc),
+            ViewKind::Camera => {
+                let ids: Vec<u64> = self.doc.project.nodes.iter().filter(|n| !matches!(n.shape, Shape::Plane)).map(|n| n.id).collect();
+                if let Some((lo, hi)) = self.doc.project.world_bounds(&ids) {
+                    self.doc.checkpoint();
+                    let c = crate::math::mul(crate::math::add(lo, hi), 0.5);
+                    let r = crate::math::len(crate::math::sub(hi, lo)).max(2.0);
+                    let cam = &mut self.doc.project.cam;
+                    cam.pivot = c;
+                    cam.eye = crate::math::sub(c, crate::math::mul(cam.forward, r * 1.4));
+                    self.doc.touch();
+                }
+            }
+        }
+    }
+
     fn zoom(&mut self, factor: f64) {
         match self.view.view {
             ViewKind::Flat(_) => self.view.flat_half *= factor,
@@ -1176,6 +1230,10 @@ impl App {
                     ui.close_menu();
                 }
                 ui.separator();
+                if ui.checkbox(&mut self.prefs.classic_look, "Classic Look (from your disc)").on_hover_text("Draw the palettes with the original program's own artwork, read from your disc image. Nothing of it ships with Kayzee 3D.").changed() && self.prefs.classic_look && self.classic_skin().is_none() {
+                    self.prefs.classic_look = false;
+                    self.warn("The Classic look needs your Bryce 3D disc image: add it first (File > Add Bryce 3D Disc Image).");
+                }
                 ui.checkbox(&mut self.prefs.stay_rendered, "Stay Rendered While Editing").on_hover_text("The picture stays up when you move things, and is drawn again after each change");
                 ui.checkbox(&mut self.prefs.snap.ground, "Snap to the Ground");
                 ui.checkbox(&mut self.prefs.snap.objects, "Snap to Other Objects");
@@ -1397,7 +1455,16 @@ impl eframe::App for App {
         let rev = self.doc.revision;
         egui::TopBottomPanel::top("menus").show_separator_line(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(egui::Margin::symmetric(8, 2))).show(ctx, |ui| self.menus(ui, ctx));
         if self.lab == Lab::None {
-            egui::TopBottomPanel::top("palettes").show_separator_line(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(egui::Margin::symmetric(12, 4))).show(ctx, |ui| self.top(ui));
+            let classic = self.classic_skin();
+            egui::TopBottomPanel::top("palettes").show_separator_line(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(egui::Margin::symmetric(12, 4))).show(ctx, |ui| {
+                match classic {
+                    Some(mut skin) => {
+                        crate::classic_app::top(self, &mut skin, ui);
+                        self.skin = Some(skin);
+                    }
+                    None => self.top(ui),
+                }
+            });
             egui::TopBottomPanel::bottom("strip").show_separator_line(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(egui::Margin::symmetric(12, 7))).show(ctx, |ui| self.bottom(ui, ctx));
         }
         // a newer version: tell the user once on the desktop, and keep a line in the window
@@ -1448,8 +1515,18 @@ impl eframe::App for App {
         }
         match self.lab {
             Lab::None => {
-                egui::SidePanel::left("controls").show_separator_line(false).exact_width(144.0).resizable(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(10.0)).show(ctx, |ui| self.left(ui, ctx));
-                egui::SidePanel::right("display").show_separator_line(false).exact_width(40.0).resizable(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(10.0)).show(ctx, |ui| self.right(ui));
+                match self.classic_skin() {
+                    Some(mut skin) => {
+                        let s = crate::classic_app::SCALE;
+                        egui::SidePanel::left("controls").show_separator_line(false).exact_width(140.0 * s + 8.0).resizable(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(4.0)).show(ctx, |ui| crate::classic_app::left(self, &mut skin, ui, ctx));
+                        egui::SidePanel::right("display").show_separator_line(false).exact_width(20.0 * s + 8.0).resizable(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(4.0)).show(ctx, |ui| crate::classic_app::right(self, &mut skin, ui));
+                        self.skin = Some(skin);
+                    }
+                    None => {
+                        egui::SidePanel::left("controls").show_separator_line(false).exact_width(144.0).resizable(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(10.0)).show(ctx, |ui| self.left(ui, ctx));
+                        egui::SidePanel::right("display").show_separator_line(false).exact_width(40.0).resizable(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(10.0)).show(ctx, |ui| self.right(ui));
+                    }
+                }
                 egui::CentralPanel::default().frame(egui::Frame::new().fill(kit::PANEL)).show(ctx, |ui| self.working_window(ui));
             }
             Lab::Materials => matlab::show(self, ctx),
