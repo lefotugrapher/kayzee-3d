@@ -141,6 +141,10 @@ without a release does not notify anyone.
 - Reading the disc's installer archive: [unshield](https://github.com/agrif/unshield) (MIT).
 - Window and controls: [egui / eframe](https://github.com/emilk/egui).
 
+### Thanks
+
+- [Anton Marini (@vade)](https://github.com/vade) for testing with old Bryce backup files and reporting the crash in [#1](https://github.com/lefotugrapher/kayzee-3d/issues/1).
+
 ## Licence and disclaimer
 
 Open source under the [MIT licence](LICENSE). Copyright (c) 2026 Kshitiz Mittal. Use it, change it,
