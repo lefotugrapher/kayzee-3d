@@ -124,7 +124,7 @@ pub fn notify(title: &str, body: &str) {
 
 /// Open a page of this project in the user's browser.
 pub fn open_page(url: &str) {
-    if !url.starts_with("https://github.com/") {
+    if !crate::news::link_ok(url) {
         return;
     }
     if cfg!(target_os = "macos") {

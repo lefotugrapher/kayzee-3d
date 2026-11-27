@@ -31,6 +31,7 @@ mod setup;
 mod sky_ui;
 mod state;
 mod terrain_ops;
+mod news;
 mod update;
 mod terrain_ui;
 mod viewport;
@@ -43,6 +44,9 @@ use eframe::egui;
 /// Command-line checks used while building the app (no window).
 fn tool(args: &[String]) -> Option<Result<(), String>> {
     match args.first().map(String::as_str)? {
+        "--news-keygen" => Some(news::keygen()),
+        "--news-sign" if args.len() >= 4 => Some(news::sign(Path::new(&args[1]), &args[2], &args[3], args.get(4).map(String::as_str).unwrap_or(""), args.get(5).and_then(|d| d.parse().ok()).unwrap_or(30))),
+        "--news-verify" if args.len() == 2 => Some(news::verify_cli(Path::new(&args[1]))),
         "--setup" if args.len() == 2 => Some(setup::set_up_from_any(Path::new(&args[1])).map(|l| l.iter().for_each(|x| println!("{x}")))),
         "--mesh-info" => {
             for f in &args[1..] {

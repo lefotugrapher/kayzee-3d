@@ -106,6 +106,10 @@ If a newer version is out you get a desktop notification and a line in the windo
 download page. The request carries nothing about you. Turn it off under **Help > Look for updates at
 start**, or look by hand with **Help > Check for Updates…**.
 
+## Messages from the author
+
+The app can show a short message from the author (a new tutorial, a heads-up) once, as a desktop notification and a line in the window. Each message is signed with the author's private key and the app checks the signature, so only the author can send one: a message that was edited or made by someone else is ignored. Messages are plain text with a few allowed links, and they expire. Nothing about you is sent. Messages are read from `news.json` in this repository. Turn this off with *Look for updates at start* (right-click the small preview).
+
 ## Build from source
 
 You need a current Rust toolchain.

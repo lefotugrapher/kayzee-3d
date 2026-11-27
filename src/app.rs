@@ -50,6 +50,9 @@ pub struct Prefs {
     /// The newest version the user has already been told about.
     #[serde(default)]
     pub told_version: String,
+    /// Messages from the author already shown (ids).
+    #[serde(default)]
+    pub seen_news: Vec<String>,
 }
 
 fn on() -> bool {
@@ -58,7 +61,7 @@ fn on() -> bool {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { stay_rendered: false, classic_look: false, snap: Default::default(), check_updates: true, last_update_check: 0, told_version: String::new() }
+        Prefs { stay_rendered: false, classic_look: false, snap: Default::default(), check_updates: true, last_update_check: 0, told_version: String::new(), seen_news: Vec::new() }
     }
 }
 
@@ -187,9 +190,11 @@ pub struct App {
     /// The user chose to work without rendering for now.
     locked_ok: bool,
     pub update: crate::update::Shared,
+    pub news: crate::news::Shared,
     /// The user asked to look (so "you are up to date" is worth saying).
     update_asked: bool,
     update_hidden: bool,
+    news_shown: Option<crate::news::Message>,
     quit_ok: bool,
 }
 
@@ -229,8 +234,10 @@ impl App {
             skin_tried: false,
             locked_ok: false,
             update: std::sync::Arc::new(std::sync::Mutex::new(crate::update::Status::Idle)),
+            news: Default::default(),
             update_asked: false,
             update_hidden: false,
+            news_shown: None,
             quit_ok: false,
         };
         if let Some(p) = first {
@@ -240,6 +247,7 @@ impl App {
         if app.prefs.check_updates && now.saturating_sub(app.prefs.last_update_check) > 6 * 3600 {
             app.prefs.last_update_check = now;
             crate::update::check(&app.update, cc.egui_ctx.clone());
+            crate::news::check(&app.news, app.prefs.seen_news.clone(), cc.egui_ctx.clone());
         }
         if auto_render {
             app.dlg.auto_render = true;
@@ -1466,6 +1474,34 @@ impl eframe::App for App {
                 }
             });
             egui::TopBottomPanel::bottom("strip").show_separator_line(false).frame(egui::Frame::new().fill(kit::PANEL).inner_margin(egui::Margin::symmetric(12, 7))).show(ctx, |ui| self.bottom(ui, ctx));
+        }
+        // a signed message from the author: shown once, as a desktop notification and a line in the window
+        let msgs: Vec<crate::news::Message> = std::mem::take(&mut *self.news.lock().unwrap());
+        for m in msgs {
+            if !self.prefs.seen_news.contains(&m.id) {
+                crate::update::notify(&m.title, &m.body);
+                self.prefs.seen_news.push(m.id.clone());
+                let keep = self.prefs.seen_news.len().saturating_sub(50);
+                self.prefs.seen_news.drain(..keep);
+                self.prefs.save();
+                self.news_shown = Some(m);
+            }
+        }
+        if let Some(m) = self.news_shown.clone() {
+            egui::TopBottomPanel::bottom("news").show_separator_line(false).frame(egui::Frame::new().fill(kit::ACCENT_DEEP).inner_margin(egui::Margin::symmetric(12, 6))).show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(&m.title).strong());
+                    ui.label(&m.body);
+                    if !m.link.is_empty() && ui.button("Open").clicked() {
+                        crate::update::open_page(&m.link);
+                    }
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui.small_button("Dismiss").clicked() {
+                            self.news_shown = None;
+                        }
+                    });
+                });
+            });
         }
         // a newer version: tell the user once on the desktop, and keep a line in the window
         let status = self.update.lock().unwrap().clone();
