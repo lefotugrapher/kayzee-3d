@@ -1,6 +1,6 @@
 [package]
 name = "kayzee3d"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 description = "A landscape modeller and renderer for Mac and Windows that opens .br3 and .br5 scene files"
 license = "MIT"
